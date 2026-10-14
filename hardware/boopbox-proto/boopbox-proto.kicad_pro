@@ -1,0 +1,45 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {},
+      "diff_pair_dimensions": [],
+      "drc_exclusions": [],
+      "rules": {},
+      "track_widths": [],
+      "via_dimensions": []
+    }
+  },
+  "boards": [],
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "boopbox-proto.kicad_pro",
+    "version": 1
+  },
+  "net_settings": {
+    "classes": [],
+    "meta": {
+      "version": 0
+    }
+  },
+  "pcbnew": {
+    "page_layout_descr_file": ""
+  },
+  "sheets": [
+    [
+      "cf3ae905-5af5-44db-b9d8-9bea9527c364",
+      "Root"
+    ],
+    [
+      "b7670513-b52d-4614-8641-1f15bc1645c8",
+      "Audio option A: MAX98357A"
+    ],
+    [
+      "919d5899-c21a-42a0-ac52-4728eeaeee0e",
+      "Audio option B: PCM5102A + MAX98306"
+    ]
+  ],
+  "text_variables": {}
+}
