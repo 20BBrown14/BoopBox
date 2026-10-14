@@ -1,0 +1,939 @@
+(kicad_sch (version 20250114) (generator "eeschema") (generator_version "9.0")
+(uuid "308e0a81-d8dc-4fe7-93f4-66a51207ec05")
+(paper "USLetter")
+(title_block (title "Audio option A: MAX98357A") (date "2026-10-12") (rev "A") (company "BoopBox") (comment 1 "Single board: I2S in, speaker out (recommended)"))
+(lib_symbols
+(symbol "power:+5V"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#PWR"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 0 3.556 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+5V\""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "global power"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "+5V_0_1"
+			(polyline
+				(pts
+					(xy -0.762 1.27) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 2.54) (xy 0.762 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "+5V_1_1"
+			(pin power_in line
+				(at 0 0 90)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "power:+3V3"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#PWR"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 0 3.556 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "global power"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "+3V3_0_1"
+			(polyline
+				(pts
+					(xy -0.762 1.27) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 2.54) (xy 0.762 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "+3V3_1_1"
+			(pin power_in line
+				(at 0 0 90)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "power:GND"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#PWR"
+			(at 0 -6.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "global power"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "GND_0_1"
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "GND_1_1"
+			(pin power_in line
+				(at 0 0 270)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "power:PWR_FLAG"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#FLG"
+			(at 0 1.905 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 0 3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "flag power"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "PWR_FLAG_0_0"
+			(pin power_out line
+				(at 0 0 90)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(symbol "PWR_FLAG_0_1"
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "Device:Speaker"
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "LS"
+			(at 1.27 5.715 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "Speaker"
+			(at 1.27 3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at -0.254 -1.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Speaker"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "speaker sound"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "Speaker_0_0"
+			(rectangle
+				(start -2.54 1.27)
+				(end 1.016 -3.81)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.016 1.27) (xy 3.556 3.81) (xy 3.556 -6.35) (xy 1.016 -3.81)
+				)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "Speaker_1_1"
+			(pin input line
+				(at -5.08 0 0)
+				(length 2.54)
+				(name "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -5.08 -2.54 0)
+				(length 2.54)
+				(name "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "Device:C_Polarized"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "C"
+			(at 0.635 2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "C_Polarized"
+			(at 0.635 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 0.9652 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Polarized capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "cap capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "CP_*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "C_Polarized_0_1"
+			(rectangle
+				(start -2.286 0.508)
+				(end 2.286 1.016)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.778 2.286) (xy -0.762 2.286)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.27 2.794) (xy -1.27 1.778)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(rectangle
+				(start 2.286 -0.508)
+				(end -2.286 -1.016)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+		)
+		(symbol "C_Polarized_1_1"
+			(pin passive line
+				(at 0 3.81 270)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "boopbox-proto:MAX98357A_Breakout" (pin_names (offset 1.016)) (exclude_from_sim no) (in_bom yes) (on_board yes)
+  (property "Reference" "U" (at 0 11.43 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "MAX98357A_Breakout" (at 0 -11.43 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "https://www.analog.com/media/en/technical-documentation/data-sheets/MAX98357A-MAX98357B.pdf" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Description" "I2S class-D mono amplifier breakout (Adafruit #3006 pinout)." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (symbol "MAX98357A_Breakout_0_1" (rectangle (start -7.62 10.16) (end 7.62 -10.16) (stroke (width 0.254) (type default)) (fill (type background))))
+  (symbol "MAX98357A_Breakout_1_1"
+    (pin passive line (at -10.16 7.62 0) (length 2.54) (name "LRC" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 5.08 0) (length 2.54) (name "BCLK" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 2.54 0) (length 2.54) (name "DIN" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 0 0) (length 2.54) (name "GAIN" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 -2.54 0) (length 2.54) (name "SD" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 -5.08 0) (length 2.54) (name "GND" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 -7.62 0) (length 2.54) (name "VIN" (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at 10.16 7.62 180) (length 2.54) (name "SPK+" (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at 10.16 5.08 180) (length 2.54) (name "SPK-" (effects (font (size 1.27 1.27)))) (number "9" (effects (font (size 1.27 1.27)))))
+  )
+)
+)
+(symbol (lib_id "boopbox-proto:MAX98357A_Breakout") (at 101.6 88.9 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "9c5f36ca-3da1-462c-9925-6527744d46bf")
+  (property "Reference" "U3" (at 101.6 77.47 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "MAX98357A breakout" (at 101.6 100.33 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 101.6 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 101.6 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "c4a32be3-bb46-4b2b-9790-c8c3f9de1ecc"))
+  (pin "2" (uuid "b1ffbfa6-94f4-4588-8829-b514b686ae70"))
+  (pin "3" (uuid "e1923793-3c0f-4d2a-8503-511486c243f6"))
+  (pin "4" (uuid "f1bf52ed-637f-4272-97f4-3eb79ab4521d"))
+  (pin "5" (uuid "d698bec6-1038-4718-927b-e2d7375a4b4f"))
+  (pin "6" (uuid "dd6cc1d9-e6f2-4f1f-bb14-6db3d0ab40c6"))
+  (pin "7" (uuid "e2ffd623-c921-4aeb-8194-023211a09b0c"))
+  (pin "8" (uuid "72b5b60e-66bf-4486-98f3-09d4c55fc294"))
+  (pin "9" (uuid "ba0c4b21-4fc3-4e7d-b2fc-b83f7055fc39"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "U3") (unit 1))))
+)
+(wire (pts (xy 91.44 81.28) (xy 86.36 81.28)) (stroke (width 0) (type default)) (uuid "f84d3352-f800-4a5d-80a6-2c324aeeefda"))
+(global_label "I2S_LRC" (shape input) (at 86.36 81.28 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "48d4cae5-566b-4195-8429-f53dd267dcec"))
+(wire (pts (xy 91.44 83.82) (xy 86.36 83.82)) (stroke (width 0) (type default)) (uuid "44fd803d-6de2-428a-bd42-c046fc0f3c40"))
+(global_label "I2S_BCLK" (shape input) (at 86.36 83.82 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "968882d8-c52a-4200-a797-2f74ccf2f8ab"))
+(wire (pts (xy 91.44 86.36) (xy 86.36 86.36)) (stroke (width 0) (type default)) (uuid "6dc60035-1d1a-46ae-bb2c-4300c4bb4c01"))
+(global_label "I2S_DIN" (shape input) (at 86.36 86.36 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "71e52ad2-de75-4d71-a37c-dee1f410e5af"))
+(no_connect (at 91.44 88.9) (uuid "83adeb42-581e-42e6-b60e-7711138525a8"))
+(no_connect (at 91.44 91.44) (uuid "f5df0988-730e-4362-8848-909c821d933e"))
+(wire (pts (xy 91.44 93.98) (xy 86.36 93.98)) (stroke (width 0) (type default)) (uuid "3f934de9-4d66-4b44-aab6-1305fb1c17a5"))
+(symbol (lib_id "power:GND") (at 86.36 93.98 270) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "6456f633-f8e8-4aa4-babd-9c34a6c50204")
+  (property "Reference" "#PWR08" (at 81.28 92.71 270) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "GND" (at 81.28 93.98 270) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 86.36 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 86.36 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "95cbd09c-59ff-4977-bc0d-a2e00cef279e"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR08") (unit 1))))
+)
+(wire (pts (xy 91.44 96.52) (xy 86.36 96.52)) (stroke (width 0) (type default)) (uuid "55f96bc7-c474-4583-85de-daa3b156f89d"))
+(symbol (lib_id "power:+5V") (at 86.36 96.52 90) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "8348fafc-4ef4-4933-b73f-e2f7a52e905f")
+  (property "Reference" "#PWR09" (at 81.28 95.25 90) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "+5V" (at 81.28 96.52 90) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 86.36 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 86.36 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "aa58b46f-0efc-4219-abc3-60bb07b80b2d"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR09") (unit 1))))
+)
+(wire (pts (xy 111.76 81.28) (xy 121.92 81.28)) (stroke (width 0) (type default)) (uuid "aff09a2b-afbc-4226-a433-07f25f3dafaf"))
+(label "SPK_P" (at 121.92 81.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "024cdbf0-23ac-465d-a594-f3c1626e55a7"))
+(wire (pts (xy 111.76 83.82) (xy 121.92 83.82)) (stroke (width 0) (type default)) (uuid "1a767729-b102-4528-9603-0847d940ff9b"))
+(label "SPK_N" (at 121.92 83.82 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9e37fb60-1d8b-459a-a58a-756ee7411cb0"))
+(symbol (lib_id "Device:Speaker") (at 160.02 88.9 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "e5884e75-6220-4512-8c7f-6eb87d12a26f")
+  (property "Reference" "LS1" (at 165.1 87.63 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "4R 3W" (at 165.1 90.17 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 160.02 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 160.02 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "8cfa26c2-faed-4a9c-b3c1-3042e769ba3e"))
+  (pin "2" (uuid "f3ecf4ef-c573-4e2e-9f86-a937f54bcbf7"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "LS1") (unit 1))))
+)
+(wire (pts (xy 154.94 88.9) (xy 144.78 88.9)) (stroke (width 0) (type default)) (uuid "e4e162dc-d975-4fa9-9b42-c07f33912d13"))
+(label "SPK_P" (at 144.78 88.9 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "6623e6f8-48c0-47a8-bc43-4e0317e4fd47"))
+(wire (pts (xy 154.94 91.44) (xy 144.78 91.44)) (stroke (width 0) (type default)) (uuid "66a297ac-ba6b-4a2b-80a8-2b31feced3f9"))
+(label "SPK_N" (at 144.78 91.44 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "2d8ecaf4-165f-4349-a286-aa0da204f804"))
+(symbol (lib_id "Device:C_Polarized") (at 76.2 114.3 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "d4a0dd5a-c42e-4083-a8e3-31a48d79eb8c")
+  (property "Reference" "C1" (at 78.74 113.03 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "1000uF 10V" (at 78.74 115.57 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 76.2 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 76.2 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "7d029fa3-42e5-4d00-ad0c-e6ca58c6c038"))
+  (pin "2" (uuid "a7b03698-9b96-4d9b-a40d-aeff3857fb14"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "C1") (unit 1))))
+)
+(symbol (lib_id "power:+5V") (at 76.2 110.49 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "e2759164-2654-48e9-af58-a0afa03829cb")
+  (property "Reference" "#PWR10" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "+5V" (at 76.2 106.68 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "8c7b04fb-6d67-475a-a63b-9ecb11ab920c"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR10") (unit 1))))
+)
+(symbol (lib_id "power:GND") (at 76.2 118.11 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "b3d90c33-fd57-44b1-b966-14528a239a78")
+  (property "Reference" "#PWR11" (at 76.2 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "GND" (at 76.2 121.92 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 76.2 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 76.2 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "61f09708-1186-47bb-a66b-8039d05306bd"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR11") (unit 1))))
+)
+(text "C1: place at U3 VIN/GND" (exclude_from_sim no) (at 81.28 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "5fa7d76b-13e2-4b3e-b403-4e1fcead1645"))
+(text "OPTION A NOTES\n- VIN from 5V (Feather USB pin) for full output; 3.3V works but is much quieter.\n- C1 sits right at the amp's VIN/GND on the breadboard to stop brownout resets on loud peaks.\n- GAIN unconnected = 9 dB. SD unconnected = (L+R)/2 mono mix via the board's on-board resistor.\n- Do NOT tie SD straight to a 3.3V GPIO: a solid high selects LEFT channel only. If you want\n  GPIO mute, check the MAX98357A datasheet SD_MODE thresholds and size a series resistor first.\n- Speaker goes across SPK+ / SPK-. Outputs are bridge-tied: never connect either one to GND." (exclude_from_sim no) (at 127 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "768294bf-51a0-4f4c-ade2-145d9e30db86"))
+(embedded_fonts no)
+)
