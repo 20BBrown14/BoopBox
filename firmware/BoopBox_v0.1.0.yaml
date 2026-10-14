@@ -1,0 +1,163 @@
+# BoopBox v0.1.0 — WiFi onboarding + NFC read/write bring-up.
+# Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode.
+
+substitutions:
+  name: boopbox
+  friendly_name: BoopBox
+  i2c_sda_pin: GPIO3
+  i2c_scl_pin: GPIO4
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  on_boot:
+    # GPIO7 powers the Feather's STEMMA QT / I2C port; must be high before the
+    # bus scan or the PN532 is unpowered.
+    priority: 800
+    then:
+      - output.turn_on: i2c_power
+
+esp32:
+  board: adafruit_feather_esp32s3
+  variant: esp32s3
+  framework:
+    type: esp-idf
+  flash_size: 4MB
+
+psram:
+  mode: quad
+  speed: 80MHz
+
+output:
+  - platform: gpio
+    id: i2c_power
+    pin: GPIO7
+
+logger:
+  level: DEBUG
+
+web_server:
+  port: 80
+  version: 3
+
+# No credentials baked in: provisioned via Improv (serial) or the captive-portal AP.
+wifi:
+  ap:
+    ssid: BoopBox Setup
+    password: SnoopBox
+    manual_ip:
+      gateway: 192.168.4.1
+      subnet: 192.168.4.0
+      static_ip: 192.168.4.2
+      dns1: 192.168.4.1
+captive_portal:
+improv_serial:
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+api:
+ota:
+  - platform: esphome
+
+i2c:
+  sda: ${i2c_sda_pin}
+  scl: ${i2c_scl_pin}
+  scan: true
+  frequency: 100kHz
+  id: bus_a
+
+text_sensor:
+  - platform: template
+    name: "Last NFC UID"
+    id: last_nfc_uid
+    icon: mdi:nfc-variant
+  - platform: template
+    name: "Last NFC Payload"
+    id: last_nfc_payload
+    icon: mdi:card-text-outline
+
+binary_sensor:
+  - platform: template
+    name: "NFC Tag Present"
+    id: nfc_tag_present
+    icon: mdi:nfc-tap
+
+# Write staged payload to the next NDEF-capable tag tapped (NTAG21x/Ultralight).
+text:
+  - platform: template
+    name: "Tag Write Payload"
+    id: tag_write_payload
+    optimistic: true
+    mode: text
+    initial_value: "boop/zelda"
+
+button:
+  - platform: template
+    name: "Write Tag"
+    id: write_tag_button
+    icon: mdi:nfc-tap
+    on_press:
+      then:
+        - lambda: |-
+            auto message = new nfc::NdefMessage();
+            message->add_text_record(id(tag_write_payload).state);
+            ESP_LOGI("boopbox", "Staging write, tap a tag now: %s",
+                     id(tag_write_payload).state.c_str());
+            id(pn532_board).write_mode(message);
+        - wait_until:
+            not:
+              pn532.is_writing:
+        - logger.log: "Finished writing tag"
+
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+
+  # ESPHome has no WiFi-only clear; factory_reset wipes all prefs (which here is
+  # effectively just the WiFi creds) and reboots into onboarding.
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: factory_reset_button
+
+pn532_i2c:
+  id: pn532_board
+  i2c_id: bus_a
+  update_interval: 500ms
+  on_tag:
+    then:
+      - lambda: |-
+          id(last_nfc_uid).publish_state(x);
+          id(nfc_tag_present).publish_state(true);
+
+          ESP_LOGI("boopbox", "=== NFC TAG READ ===");
+          ESP_LOGI("boopbox", "UID: %s", x.c_str());
+
+          if (tag.has_ndef_message()) {
+            auto message = tag.get_ndef_message();
+            auto records = message->get_records();
+            ESP_LOGI("boopbox", "NDEF records: %d", (int) records.size());
+
+            std::string combined;
+            int i = 0;
+            for (auto &record : records) {
+              std::string type = record->get_type();
+              std::string payload = record->get_payload();
+              ESP_LOGI("boopbox", "  [%d] type='%s' payload='%s'",
+                       i, type.c_str(), payload.c_str());
+              if (!combined.empty()) combined += " | ";
+              combined += payload;
+              i++;
+            }
+            id(last_nfc_payload).publish_state(combined);
+          } else {
+            ESP_LOGI("boopbox", "No NDEF message on this tag (UID-only read).");
+            id(last_nfc_payload).publish_state("<no NDEF — UID only>");
+          }
+          ESP_LOGI("boopbox", "====================");
+  on_tag_removed:
+    then:
+      - lambda: |-
+          id(nfc_tag_present).publish_state(false);
+          ESP_LOGD("boopbox", "Tag removed: %s", x.c_str());
