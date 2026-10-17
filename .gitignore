@@ -1,1 +1,19 @@
 .kiro
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# SQLite (and WAL sidecars)
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env
