@@ -1,1 +1,11 @@
 .kiro
+
+# KiCad
+*.lck
+*-backups/
+fp-info-cache
+_autosave-*
+
+# Audio test files: the generated clips are committed; anything else dropped in
+# here (personal music) stays local. Use `git add -f` to deliberately add one.
+test-audio/
