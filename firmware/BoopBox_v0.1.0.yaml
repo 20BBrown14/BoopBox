@@ -1,11 +1,15 @@
-# BoopBox v0.1.0 — WiFi onboarding + NFC read/write bring-up.
-# Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode.
+# BoopBox v0.1.0 — WiFi onboarding + NFC read/write + audio bring-up.
+# Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode,
+# MAX98357A I2S amp. Wiring: hardware/boopbox-proto (KiCad).
 
 substitutions:
   name: boopbox
   friendly_name: BoopBox
   i2c_sda_pin: GPIO3
   i2c_scl_pin: GPIO4
+  i2s_bclk_pin: GPIO9
+  i2s_lrclk_pin: GPIO10
+  i2s_dout_pin: GPIO11
 
 esphome:
   name: ${name}
@@ -93,6 +97,16 @@ text:
     mode: text
     initial_value: "boop/zelda"
 
+  # Audio bring-up: any MP3/FLAC/WAV URL reachable from the box, e.g. a file
+  # served with `python -m http.server` on your machine.
+  - platform: template
+    name: "Test Audio URL"
+    id: test_audio_url
+    optimistic: true
+    mode: text
+    restore_value: true
+    initial_value: "http://192.168.1.100:8000/test.mp3"
+
 button:
   - platform: template
     name: "Write Tag"
@@ -111,6 +125,15 @@ button:
               pn532.is_writing:
         - logger.log: "Finished writing tag"
 
+  - platform: template
+    name: "Play Test Audio"
+    id: play_test_audio_button
+    icon: mdi:play
+    on_press:
+      - media_player.play_media:
+          id: boop_player
+          media_url: !lambda 'return id(test_audio_url).state;'
+
   - platform: restart
     name: "Restart"
     id: restart_button
@@ -120,6 +143,33 @@ button:
   - platform: factory_reset
     name: "Factory Reset"
     id: factory_reset_button
+
+i2s_audio:
+  - id: i2s_out
+    i2s_bclk_pin: ${i2s_bclk_pin}
+    i2s_lrclk_pin: ${i2s_lrclk_pin}
+
+# MAX98357A: GAIN floating (9 dB), SD floating (L+R mix), so mono is fine.
+speaker:
+  - platform: i2s_audio
+    id: boop_speaker
+    i2s_audio_id: i2s_out
+    dac_type: external
+    i2s_dout_pin: ${i2s_dout_pin}
+    channel: mono
+
+media_player:
+  - platform: speaker
+    name: "BoopBox Player"
+    id: boop_player
+    # NONE builds every decoder (MP3/FLAC/WAV/Opus) so arbitrary stream URLs
+    # play, not just what Home Assistant would transcode to.
+    announcement_pipeline:
+      speaker: boop_speaker
+      format: NONE
+    # Ceiling protects the 3 W speaker and small ears; tune by ear.
+    volume_max: 0.7
+    volume_initial: 0.4
 
 pn532_i2c:
   id: pn532_board
