@@ -132,6 +132,27 @@ text:
     restore_value: true
     initial_value: "http://192.168.1.100:8000/test.mp3"
 
+# 0-100 maps onto the media player's volume_min..volume_max, so 100 is the cap.
+number:
+  - platform: template
+    name: "Volume"
+    id: volume_number
+    icon: mdi:volume-high
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 15
+    mode: slider
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    update_interval: 1s
+    lambda: 'return id(boop_player).volume * 100.0f;'
+    set_action:
+      - media_player.volume_set:
+          id: boop_player
+          volume: !lambda 'return x / 100.0f;'
+
 button:
   - platform: template
     name: "Write Tag"
