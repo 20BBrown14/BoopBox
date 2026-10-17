@@ -34,11 +34,7 @@
     ],
     [
       "b7670513-b52d-4614-8641-1f15bc1645c8",
-      "Audio option A: MAX98357A"
-    ],
-    [
-      "919d5899-c21a-42a0-ac52-4728eeaeee0e",
-      "Audio option B: PCM5102A + MAX98306"
+      "Audio: MAX98357A"
     ]
   ],
   "text_variables": {}

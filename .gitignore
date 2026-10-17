@@ -1,1 +1,7 @@
 .kiro
+
+# KiCad
+*.lck
+*-backups/
+fp-info-cache
+_autosave-*

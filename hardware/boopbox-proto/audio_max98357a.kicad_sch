@@ -1,7 +1,7 @@
 (kicad_sch (version 20250114) (generator "eeschema") (generator_version "9.0")
 (uuid "308e0a81-d8dc-4fe7-93f4-66a51207ec05")
 (paper "USLetter")
-(title_block (title "Audio option A: MAX98357A") (date "2026-10-12") (rev "A") (company "BoopBox") (comment 1 "Single board: I2S in, speaker out (recommended)"))
+(title_block (title "Audio: MAX98357A") (date "2026-10-17") (rev "B") (company "BoopBox") (comment 1 "Single board: I2S in, speaker out"))
 (lib_symbols
 (symbol "power:+5V"
 		(power global)
@@ -934,6 +934,6 @@
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR11") (unit 1))))
 )
 (text "C1: place at U3 VIN/GND" (exclude_from_sim no) (at 81.28 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "5fa7d76b-13e2-4b3e-b403-4e1fcead1645"))
-(text "OPTION A NOTES\n- VIN from 5V (Feather USB pin) for full output; 3.3V works but is much quieter.\n- C1 sits right at the amp's VIN/GND on the breadboard to stop brownout resets on loud peaks.\n- GAIN unconnected = 9 dB. SD unconnected = (L+R)/2 mono mix via the board's on-board resistor.\n- Do NOT tie SD straight to a 3.3V GPIO: a solid high selects LEFT channel only. If you want\n  GPIO mute, check the MAX98357A datasheet SD_MODE thresholds and size a series resistor first.\n- Speaker goes across SPK+ / SPK-. Outputs are bridge-tied: never connect either one to GND." (exclude_from_sim no) (at 127 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "768294bf-51a0-4f4c-ade2-145d9e30db86"))
+(text "AUDIO NOTES\n- VIN from 5V (Feather USB pin) for full output; 3.3V works but is much quieter.\n- C1 sits right at the amp's VIN/GND on the breadboard to stop brownout resets on loud peaks.\n- GAIN unconnected = 9 dB. SD unconnected = (L+R)/2 mono mix via the board's on-board resistor.\n- Do NOT tie SD straight to a 3.3V GPIO: a solid high selects LEFT channel only. If you want\n  GPIO mute, check the MAX98357A datasheet SD_MODE thresholds and size a series resistor first.\n- Speaker goes across SPK+ / SPK-. Outputs are bridge-tied: never connect either one to GND." (exclude_from_sim no) (at 127 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "768294bf-51a0-4f4c-ade2-145d9e30db86"))
 (embedded_fonts no)
 )
