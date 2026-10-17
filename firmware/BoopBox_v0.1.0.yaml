@@ -43,6 +43,16 @@ logger:
 web_server:
   port: 80
   version: 3
+  sorting_groups:
+    - id: grp_nfc
+      name: "NFC"
+      sorting_weight: 10
+    - id: grp_audio_test
+      name: "Audio Test"
+      sorting_weight: 20
+    - id: grp_device
+      name: "Device"
+      sorting_weight: 90
 
 # No credentials baked in: provisioned via Improv (serial) or the captive-portal AP.
 wifi:
@@ -76,16 +86,25 @@ text_sensor:
   - platform: template
     name: "Last NFC UID"
     id: last_nfc_uid
+    web_server:
+      sorting_group_id: grp_nfc
+      sorting_weight: 20
     icon: mdi:nfc-variant
   - platform: template
     name: "Last NFC Payload"
     id: last_nfc_payload
+    web_server:
+      sorting_group_id: grp_nfc
+      sorting_weight: 30
     icon: mdi:card-text-outline
 
 binary_sensor:
   - platform: template
     name: "NFC Tag Present"
     id: nfc_tag_present
+    web_server:
+      sorting_group_id: grp_nfc
+      sorting_weight: 10
     icon: mdi:nfc-tap
 
 # Write staged payload to the next NDEF-capable tag tapped (NTAG21x/Ultralight).
@@ -93,6 +112,9 @@ text:
   - platform: template
     name: "Tag Write Payload"
     id: tag_write_payload
+    web_server:
+      sorting_group_id: grp_nfc
+      sorting_weight: 40
     optimistic: true
     mode: text
     initial_value: "boop/zelda"
@@ -102,6 +124,9 @@ text:
   - platform: template
     name: "Test Audio URL"
     id: test_audio_url
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 10
     optimistic: true
     mode: text
     restore_value: true
@@ -111,6 +136,9 @@ button:
   - platform: template
     name: "Write Tag"
     id: write_tag_button
+    web_server:
+      sorting_group_id: grp_nfc
+      sorting_weight: 50
     icon: mdi:nfc-tap
     on_press:
       then:
@@ -128,6 +156,9 @@ button:
   - platform: template
     name: "Play Test Audio"
     id: play_test_audio_button
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 20
     icon: mdi:play
     on_press:
       - media_player.play_media:
@@ -137,12 +168,18 @@ button:
   - platform: restart
     name: "Restart"
     id: restart_button
+    web_server:
+      sorting_group_id: grp_device
+      sorting_weight: 10
 
   # ESPHome has no WiFi-only clear; factory_reset wipes all prefs (which here is
   # effectively just the WiFi creds) and reboots into onboarding.
   - platform: factory_reset
     name: "Factory Reset"
     id: factory_reset_button
+    web_server:
+      sorting_group_id: grp_device
+      sorting_weight: 20
 
 i2s_audio:
   - id: i2s_out
