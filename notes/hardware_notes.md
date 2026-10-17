@@ -27,3 +27,9 @@ Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in 
 - Speaker outputs are bridge-tied: never connect SPK+ or SPK- to GND (including a scope ground clip).
 - Don't drive SD high from a GPIO: a solid 3.3V selects LEFT only. Mute = pull low, play = release (open-drain).
 - Volume is capped in firmware (`volume_max`) on top of the hardware gain.
+
+### Bring-up status (2026-10-17)
+- First sound confirmed: Feather + MAX98357A + 4Ω speaker on USB power, streaming over Wi-Fi from a local HTTP server. The start of playback isn't clipped (a 3-beep test file plays all three beeps).
+- Plays: WAV (mono and stereo) and stereo MP3.
+- **Known issue: mono MP3 doesn't play** on ESPHome 2026.6.5. The decoder reads the header, then the pipeline goes back to idle without starting the speaker, and nothing is logged as an error. Matters for audiobooks/podcasts. Workarounds: transcode to stereo on the server, or fix upstream.
+- When test-serving from a dev machine, its host firewall must allow the box in (k2so drops inbound by default).
