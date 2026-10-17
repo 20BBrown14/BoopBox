@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "boopbox-server"
+version = "0.1.0"
+description = "BoopBox server: bridges the BoopBox fleet to media sources over MQTT and HTTP."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.143.3",
+    "uvicorn[standard]==0.54.0",
+    "aiomqtt==2.5.1",
+    "aiosqlite==0.22.1",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.0",
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.17.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
