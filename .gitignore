@@ -1,5 +1,8 @@
 .kiro
 
+server/app-data/
+
+
 # Python
 __pycache__/
 *.pyc

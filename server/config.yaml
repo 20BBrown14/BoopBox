@@ -1,0 +1,28 @@
+# Structured, human-edited configuration. No secrets.
+# Secrets and deploy-specific values live in .env (see .env.example).
+
+sources:
+  - id: jellyfin-main
+    type: jellyfin
+    base_url: http://jellyfin:8096
+    user_id: ""                       # optional
+
+mappings:                             # slug -> list of entries; server picks one to play
+  "boop/example":
+    - source: jellyfin-main           # references a sources[].id
+      item: "REPLACE_WITH_SOURCE_ITEM_ID"
+      kind: item                      # item | collection; default item
+  "boop/soundtracks":
+    - source: jellyfin-main
+      item: "REPLACE_WITH_COLLECTION_ID"
+      kind: collection                # a collection expands to its member items
+    - source: jellyfin-main
+      item: "REPLACE_WITH_SOURCE_ITEM_ID"
+      kind: item
+
+streaming:
+  mode: proxy                         # proxy | redirect (redirect not yet functional)
+  pause_budget_seconds: 1800
+
+ota:
+  manifest_version: "0.1.0"

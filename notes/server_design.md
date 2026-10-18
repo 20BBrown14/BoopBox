@@ -120,7 +120,9 @@ per-device ACL would (correctly) block boxes from receiving broadcasts.
 ## Tag model
 
 - The tag carries an opaque **slug** (NDEF text record, e.g. `boop/zelda`).
-- SQLite maps `slug -> source + item`. The box never knows what Jellyfin is.
+- A slug maps to a **list of entries**, each `source + item + kind` (`item` or
+  `collection`); a collection expands to its member items. The server picks one
+  entry to play. The box never knows what Jellyfin is.
 - Slugs are human-readable and portable across boxes; the parent web UI edits the
   mapping.
 
@@ -166,7 +168,8 @@ Verification on `GET /stream?sig=<token>` is the exact inverse, in this order:
 
 Flow:
 1. Box boops a slug over MQTT.
-2. Server resolves slug -> source + item via the config mapping.
+2. Server resolves slug -> list of entries via the config mapping and picks one
+   entry (source + item), expanding a collection to a member item.
 3. Server mints an HMAC-signed token binding `deviceid + source + item + expiry`,
    where `expiry = now + item_duration + pause_budget` (see Token TTL and
    pause/resume).
@@ -578,10 +581,11 @@ sources:                       # array: more than one source may be configured
     user_id: ""                # optional
     # api key is injected from .env, referenced by source id
 
-mappings:                      # slug -> source + item
+mappings:                      # slug -> list of entries; server picks one to play
   "boop/zelda":
-    source: jellyfin-main      # references a source by id
-    item: "a1b2c3d4e5f6..."    # opaque source-internal id (Jellyfin item id); admin/UI fills it in
+    - source: jellyfin-main    # references a source by id
+      item: "a1b2c3d4e5f6..."  # opaque source-internal id (Jellyfin item id); admin/UI fills it in
+      kind: item               # item | collection (default item); a collection expands to its members
 
 streaming:
   mode: proxy                  # proxy | redirect (redirect later)
@@ -620,10 +624,11 @@ BOOPBOX_SEED_DEVICE_MQTT_PASSWORD=
 ## Media source abstraction
 
 The server only talks to a source interface, never to Jellyfin directly. A source
-can: take the mapping's opaque `item` id and open a byte stream for it, honoring a
-Range header. Slug resolution (slug -> source + item) happens in the app via the
-config/DB mapping, *before* the source is involved — the source never sees the
-slug and the tag never carries a source scheme. Jellyfin is the MVP
+can: take an entry's opaque `item` id and open a byte stream for it, honoring a
+Range header; for a `collection` entry it expands the id to its member items.
+Slug resolution (slug -> list of entries, then pick one source + item) happens in
+the app via the config/DB mapping, *before* the source is involved — the source
+never sees the slug and the tag never carries a source scheme. Jellyfin is the MVP
 implementation; Plex, local files, etc. come later.
 
 ## SQLite schema
@@ -718,7 +723,7 @@ flowchart TB
 
     subgraph app["BoopBox app (Uvicorn runs FastAPI, plain HTTP)"]
         loop["aiomqtt loop<br/>sub: boopbox/+/boop<br/>pub: /play, /error, /cmd<br/>(+ broadcast boopbox/all/cmd)"]
-        resolve["slug -> source+item<br/>(config.yaml mapping)"]
+        resolve["slug -> list of entries, pick one<br/>(config.yaml mapping)"]
         token["mint signed URL token<br/>binds deviceid+item, expiry = now + duration + pause_budget"]
         stream["GET /stream?sig=&lt;token&gt;<br/>verify HMAC + expiry,<br/>proxy w/ Range"]
         ota["OTA: serve generated manifest.json<br/>+ firmware.bin (static, cached)"]
