@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import DeviceRepository, connect, init_schema, seed_device
+from app.sources import SourceRegistry
 
 
 @asynccontextmanager
@@ -15,6 +16,7 @@ async def lifespan(app: FastAPI):
     await seed_device(DeviceRepository(conn), settings.seed_device_id)
     app.state.db = conn
     app.state.devices = DeviceRepository(conn)
+    app.state.sources = SourceRegistry.from_settings(settings)  # P6 reads this.
     # P7 starts the MQTT loop here; P8 builds the manifest here.
     yield
     # Shutdown
