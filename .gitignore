@@ -10,6 +10,10 @@ _autosave-*
 # here (personal music) stays local. Use `git add -f` to deliberately add one.
 test-audio/
 
+# Server
+server/app-data/
+
+
 # Python
 __pycache__/
 *.pyc

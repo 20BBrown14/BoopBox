@@ -2,4 +2,11 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "9685:9685"
+    env_file:
+      - .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./app-data:/data
+    environment:
+      BOOPBOX_DB_PATH: /data/devices.db
