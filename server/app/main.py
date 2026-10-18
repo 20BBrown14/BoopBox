@@ -2,12 +2,23 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.config import get_settings
+from app.db import DeviceRepository, connect, init_schema, seed_device
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: P2 initializes the DB; P7 starts the MQTT loop; P8 builds the manifest.
+    # Startup
+    settings = get_settings()
+    conn = await connect(settings.db_path)
+    await init_schema(conn)
+    await seed_device(DeviceRepository(conn), settings.seed_device_id)
+    app.state.db = conn
+    app.state.devices = DeviceRepository(conn)
+    # P7 starts the MQTT loop here; P8 builds the manifest here.
     yield
-    # Shutdown: P7 stops the MQTT loop.
+    # Shutdown
+    await conn.close()  # P7 stops the MQTT loop here.
 
 
 def create_app() -> FastAPI:
