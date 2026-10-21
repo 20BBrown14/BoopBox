@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import DeviceRepository, connect, init_schema, seed_device
+from app.routes import stream_router
 from app.sources import SourceRegistry
 
 
@@ -29,5 +30,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    app.include_router(stream_router)
 
     return app
