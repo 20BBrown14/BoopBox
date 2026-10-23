@@ -76,3 +76,14 @@ class Source(Protocol):
         before `open`. Raises `SourceError` if the item/source is unavailable.
         """
         ...
+
+    async def members(self, collection: str) -> list[str]:
+        """Expand a collection id to its member item ids.
+
+        A mapping entry of kind `collection` names a collection, not a playable
+        item; P7 calls this to turn it into concrete items and then picks one.
+        An empty collection or a failed expansion raises `SourceError`
+        (`item_unavailable` / `source_unavailable`); P7 publishes the scrubbed
+        error. Implemented by the fake (tests) and Jellyfin (P9).
+        """
+        ...
