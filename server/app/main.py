@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import DeviceRepository, connect, init_schema, seed_device
+from app.mqtt import MqttService
 from app.routes import stream_router
 from app.sources import SourceRegistry
 
@@ -18,10 +19,13 @@ async def lifespan(app: FastAPI):
     app.state.db = conn
     app.state.devices = DeviceRepository(conn)
     app.state.sources = SourceRegistry.from_settings(settings)  # P6 reads this.
-    # P7 starts the MQTT loop here; P8 builds the manifest here.
+    mqtt = MqttService(settings, app.state.sources, app.state.devices)
+    app.state.mqtt = mqtt
+    mqtt.start()  # P8 builds the manifest here.
     yield
     # Shutdown
-    await conn.close()  # P7 stops the MQTT loop here.
+    await mqtt.stop()  # stop the MQTT loop before the DB connection closes.
+    await conn.close()
 
 
 def create_app() -> FastAPI:

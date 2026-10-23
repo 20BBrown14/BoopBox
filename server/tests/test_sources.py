@@ -59,6 +59,32 @@ async def test_none_duration_mode():
     assert await src.duration(ITEM) is None
 
 
+async def test_members_expands_collection():
+    src = FakeSource(collections={"col-1": ["a", "b", "c"]})
+    assert await src.members("col-1") == ["a", "b", "c"]
+
+
+async def test_members_unknown_collection_is_item_unavailable():
+    src = FakeSource()
+    with pytest.raises(SourceError) as exc:
+        await src.members("nope")
+    assert exc.value.code is ErrorCode.item_unavailable
+
+
+async def test_members_empty_collection_is_item_unavailable():
+    src = FakeSource(collections={"col-empty": []})
+    with pytest.raises(SourceError) as exc:
+        await src.members("col-empty")
+    assert exc.value.code is ErrorCode.item_unavailable
+
+
+async def test_members_source_unavailable_mode():
+    src = FakeSource(fail_with=ErrorCode.source_unavailable)
+    with pytest.raises(SourceError) as exc:
+        await src.members("col-1")
+    assert exc.value.code is ErrorCode.source_unavailable
+
+
 async def test_item_unavailable_on_unknown_item():
     src = FakeSource()
     with pytest.raises(SourceError) as exc:
