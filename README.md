@@ -207,16 +207,22 @@ committed — keep them in `.env`, not `config.yaml`.
 | `BOOPBOX_STREAM_SECRET` | — (required) | **(secret)** HMAC signing secret for stream tokens. |
 | `BOOPBOX_CONFIG_PATH` | `config.yaml` | Path to `config.yaml`. |
 | `BOOPBOX_DB_PATH` | `devices.db` | SQLite file path. |
-| `BOOPBOX_MQTT_HOST` | `localhost` | |
-| `BOOPBOX_MQTT_PORT` | `1883` | |
-| `BOOPBOX_MQTT_USERNAME` | empty | |
-| `BOOPBOX_MQTT_PASSWORD` | empty | **(secret)** |
-| `BOOPBOX_MQTT_TLS` | `false` | |
+| `BOOPBOX_MQTT_HOST` | `localhost` | Broker host the server connects to at startup. |
+| `BOOPBOX_MQTT_PORT` | `1883` | Broker port. |
+| `BOOPBOX_MQTT_USERNAME` | empty | Broker username; empty connects anonymously. |
+| `BOOPBOX_MQTT_PASSWORD` | empty | **(secret)** Broker password. |
+| `BOOPBOX_MQTT_TLS` | `false` | Enable TLS to the broker. |
 | `BOOPBOX_MQTT_TLS_CA` | empty | Path to a CA bundle when TLS is on. |
-| `BOOPBOX_PUBLIC_BASE_URL` | `http://127.0.0.1:9685` | URL boxes use to reach the server. |
+| `BOOPBOX_PUBLIC_BASE_URL` | `http://127.0.0.1:9685` | URL boxes use to reach the server; used verbatim to build signed `/stream` URLs. |
 | `BOOPBOX_SOURCE_<ID>_API_KEY` | empty | **(secret)** API key per source. `<ID>` is the source id uppercased with non-alphanumeric runs replaced by `_` (e.g. `jellyfin-main` → `BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY`). |
 | `BOOPBOX_SEED_DEVICE_ID` | `boop-test` | MVP seed device, upserted at startup. |
 | `BOOPBOX_SEED_DEVICE_MQTT_PASSWORD` | empty | **(secret)** Provisioned at the broker; never stored in the database. |
+
+The `BOOPBOX_MQTT_*` variables are live runtime config: the server opens an MQTT
+connection to the broker at startup and subscribes to `boopbox/+/boop`, so the
+broker must be reachable with these settings for boops to be answered.
+`BOOPBOX_PUBLIC_BASE_URL` is consumed to build the signed stream URL returned in
+each `play`.
 
 #### Generating `BOOPBOX_STREAM_SECRET`
 

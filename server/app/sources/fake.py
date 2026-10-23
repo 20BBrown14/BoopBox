@@ -59,11 +59,15 @@ class FakeSource:
         duration: int | None = 180,
         known_item: str = "fake-item",
         fail_with: ErrorCode | None = None,
+        collections: dict[str, list[str]] | None = None,
     ) -> None:
         self._data = data
         self._duration = duration
         self._known_item = known_item
         self._fail_with = fail_with
+        # collection id -> member item ids; empty list simulates an empty
+        # collection (surfaces as item_unavailable on expand).
+        self._collections = collections or {}
         # Exposed so tests can assert the last opened stream was closed.
         self.last_stream: _FakeStream | None = None
 
@@ -84,6 +88,24 @@ class FakeSource:
     async def duration(self, item: str) -> int | None:
         self._guard(item)
         return self._duration
+
+    async def members(self, collection: str) -> list[str]:
+        if self._fail_with is not None:
+            raise SourceError(
+                self._fail_with, log_detail=f"fake forced {collection!r}"
+            )
+        members = self._collections.get(collection)
+        if members is None:
+            raise SourceError(
+                ErrorCode.item_unavailable,
+                log_detail=f"no such fake collection {collection!r}",
+            )
+        if not members:
+            raise SourceError(
+                ErrorCode.item_unavailable,
+                log_detail=f"empty fake collection {collection!r}",
+            )
+        return list(members)
 
 
 def _build_fake(config: SourceConfig, settings: Settings) -> "FakeSource":
