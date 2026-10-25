@@ -197,6 +197,31 @@ ota:
 The config file path defaults to `config.yaml` relative to the working directory;
 override with `BOOPBOX_CONFIG_PATH`.
 
+### Media sources
+
+#### Jellyfin (`type: jellyfin`)
+
+```yaml
+sources:
+  - id: jellyfin-main                 # referenced by mappings and the API-key env var
+    type: jellyfin
+    base_url: http://jellyfin:8096    # Jellyfin server URL
+    user_id: ""                       # optional
+```
+
+- The API key is read from the environment, not `config.yaml`:
+  `BOOPBOX_SOURCE_<ID>_API_KEY` (for `id: jellyfin-main`,
+  `BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY`). See the `.env` reference for the `<ID>` naming rule.
+- `base_url` points at the Jellyfin server reachable from the BoopBox server.
+- `user_id` is optional; set it if item metadata lookups require a user context.
+- A `mapping` entry of `kind: collection` may point at a Jellyfin collection,
+  playlist, or album id; the server lists its members and plays one.
+
+Jellyfin credentials and URLs stay server-side: they never appear in a `play`
+command or the signed `/stream` URL, and upstream errors are returned to the box
+as generic codes (`item_unavailable` / `source_unavailable`) with no upstream
+detail.
+
 ### OTA firmware directory
 
 The server hosts built firmware `.bin` files at `/firmware`. The directory is set
