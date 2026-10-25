@@ -192,10 +192,36 @@ ota:
 | `mappings.<slug>[].kind` | `item` \| `collection` | `item` | `collection` points at a set (e.g. a Jellyfin collection, a Spotify album later) that expands to its member items; the server picks one item at random to play. |
 | `streaming.mode` | `proxy` \| `redirect` | `proxy` | `redirect` is accepted but not yet functional. |
 | `streaming.pause_budget_seconds` | int | `1800` | Added to item duration for stream-token expiry. |
-| `ota.manifest_version` | string | `0.1.0` | Drives the hosted OTA manifest. |
+| `ota.manifest_version` | string | `0.1.0` | Single source of truth for the OTA target version: drives both the hosted `manifest.json` `version` and the version the server locates on disk and pushes to boxes. Not derived from a filename. |
 
 The config file path defaults to `config.yaml` relative to the working directory;
 override with `BOOPBOX_CONFIG_PATH`.
+
+### OTA firmware directory
+
+The server hosts built firmware `.bin` files at `/firmware`. The directory is set
+by `BOOPBOX_FIRMWARE_DIR` (default `firmware-bins`, relative to the working
+directory). This is distinct from the repo's `firmware/` directory, which holds
+ESPHome *source* YAML; the server serves built bins and does not build firmware.
+
+Layout the admin must follow:
+
+```
+<firmware_dir>/esp32s3/boopbox-0.1.0.bin   # one chip subdir per chip family
+<firmware_dir>/esp32s3/boopbox-0.2.0.bin   # older versions may be kept for rollback
+```
+
+- One **chip subfolder** per chip family. MVP supports `esp32s3` (→ `ESP32-S3`);
+  unknown subfolders are skipped.
+- Bin naming: `boopbox-<version>.bin`. The server locates the bin whose version
+  matches `ota.manifest_version` in each chip dir.
+
+To publish a build: drop the new bin in the chip subdir and set
+`ota.manifest_version` to its version.
+
+The hosted `/firmware/manifest.json` is generated from these bins and exists for
+**browser-based provisioning** (ESP-Web-Tools flashing a fresh box over USB).
+On-device updates are **server-pushed** over MQTT, not polled from this manifest.
 
 ### `.env` reference
 
@@ -207,6 +233,7 @@ committed — keep them in `.env`, not `config.yaml`.
 | `BOOPBOX_STREAM_SECRET` | — (required) | **(secret)** HMAC signing secret for stream tokens. |
 | `BOOPBOX_CONFIG_PATH` | `config.yaml` | Path to `config.yaml`. |
 | `BOOPBOX_DB_PATH` | `devices.db` | SQLite file path. |
+| `BOOPBOX_FIRMWARE_DIR` | `firmware-bins` | Non-secret, deploy-specific. Directory of built OTA `.bin` files the `/firmware` host serves. See the OTA firmware directory section for layout. Distinct from the repo's `firmware/` ESPHome-source dir. |
 | `BOOPBOX_MQTT_HOST` | `localhost` | Broker host the server connects to at startup. |
 | `BOOPBOX_MQTT_PORT` | `1883` | Broker port. |
 | `BOOPBOX_MQTT_USERNAME` | empty | Broker username; empty connects anonymously. |
