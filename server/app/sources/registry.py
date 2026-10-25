@@ -39,8 +39,7 @@ class SourceRegistry:
     @classmethod
     def from_settings(cls, settings: Settings) -> "SourceRegistry":
         sources = {
-            entry.id: build_source(entry, settings)
-            for entry in settings.config.sources
+            entry.id: build_source(entry, settings) for entry in settings.config.sources
         }
         return cls(sources)
 
@@ -54,3 +53,12 @@ class SourceRegistry:
             return self._sources[source_id]
         except KeyError:
             raise KeyError(f"unknown source id: {source_id!r}") from None
+
+    async def aclose(self) -> None:
+        """Close any source holding a long-lived client (e.g. Jellyfin's httpx
+        client). Called at shutdown so
+        connections are released."""
+        for source in self._sources.values():
+            closer = getattr(source, "aclose", None)
+            if closer is not None:
+                await closer()

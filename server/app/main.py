@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     await mqtt.stop()  # stop the MQTT loop before the DB connection closes.
+    await app.state.sources.aclose()  # release long-lived source clients.
     await conn.close()
 
 
