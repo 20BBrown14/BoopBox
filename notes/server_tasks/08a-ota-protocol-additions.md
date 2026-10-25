@@ -1,14 +1,14 @@
 # P7 amendment — OTA protocol additions (get_version / flash / version reply)
 
 Amends **P7 (MQTT control plane)** for the server-driven push OTA model (see
-`08-ota-static-host-and-manifest.md` for the model, `09-ota-version-policy-and-push.md`
+`08-ota-static-host-and-manifest.md` for the model, `11-ota-version-policy-and-push.md`
 for the policy that uses these). P7 is implemented; this adds a server→box
 query/response round-trip and a richer command, without touching the existing
 boop→play/error flow.
 
 This is **protocol** work: new message types on the wire and the consumer that
 reads the reply. It does not include the push *policy* (when/whom to flash) —
-that is P9.
+that is P11.
 
 ## Why P7 and not P8
 
@@ -127,4 +127,4 @@ plane, not the static host.
   Version replies get their own handler.
 - **Fat command stays under the URL buffer.** `url` + `md5` inline is small, but
   keep `url` an absolute server path (not a long external/redirecting URL).
-- **md5 and url come from P8's index**, never hand-built in P7/P9.
+- **md5 and url come from P8's index**, never hand-built in P7 or P11.
