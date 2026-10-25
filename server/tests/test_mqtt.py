@@ -9,9 +9,9 @@ import pytest
 from app.config import Settings
 from app.db import DeviceRepository, connect, init_schema, seed_device
 from app.errors import ErrorCode
-from app.models import Boop, Cmd, CmdName, Error, Play
-from app.mqtt.handler import build_response
-from app.mqtt.publish import publish_cmd
+from app.models import Boop, Cmd, CmdName, Error, FlashCmd, Play, VersionReply
+from app.mqtt.handler import build_response, parse_version_reply
+from app.mqtt.publish import publish_cmd, publish_flash
 from app.mqtt.service import MqttService, device_id_from_topic
 from app.protocol import PROTOCOL_VERSION
 from app.sources import FakeSource, SourceRegistry
@@ -310,7 +310,7 @@ def test_device_id_from_topic():
 
 async def test_publish_cmd_per_device_and_broadcast():
     client = _CapturingClient()
-    cmd = Cmd(cmd=CmdName.check_update)
+    cmd = Cmd(cmd=CmdName.get_version)
 
     await publish_cmd(client, "boop-test", cmd)
     await publish_cmd(client, "all", cmd)
@@ -319,16 +319,157 @@ async def test_publish_cmd_per_device_and_broadcast():
     assert client.published[1][0] == "boopbox/all/cmd"
     for _, payload in client.published:
         parsed = Cmd.model_validate_json(payload)
-        assert parsed.cmd is CmdName.check_update
+        assert parsed.cmd is CmdName.get_version
         assert parsed.v == PROTOCOL_VERSION
 
 
 async def test_send_cmd_requires_connection(settings, devices):
     svc = _service(settings, _fake_registry(), devices)
     with pytest.raises(RuntimeError):
-        await svc.send_cmd("boop-test", Cmd(cmd=CmdName.check_update))
+        await svc.send_cmd("boop-test", Cmd(cmd=CmdName.get_version))
 
     # When connected, it publishes through the live client.
     svc.client = _CapturingClient()
-    await svc.send_cmd("boop-test", Cmd(cmd=CmdName.check_update))
+    await svc.send_cmd("boop-test", Cmd(cmd=CmdName.get_version))
     assert svc.client.published[0][0] == "boopbox/boop-test/cmd"
+
+
+# --- P8a: get_version / flash commands + version reply ---
+
+
+async def test_get_version_is_thin_cmd_shape():
+    client = _CapturingClient()
+    await publish_cmd(client, "boop-test", Cmd(cmd=CmdName.get_version))
+    topic, payload = client.published[0]
+    assert topic == "boopbox/boop-test/cmd"
+    body = json.loads(payload)
+    assert body == {"v": PROTOCOL_VERSION, "cmd": "get_version"}
+    assert "url" not in body and "md5" not in body
+
+
+async def test_flash_command_shape_per_device():
+    client = _CapturingClient()
+    flash = FlashCmd(url="/firmware/esp32s3/boopbox-0.2.0.bin", md5="abc123")
+    await publish_flash(client, "boop-test", flash)
+
+    topic, payload = client.published[0]
+    assert topic == "boopbox/boop-test/cmd"
+    body = json.loads(payload)
+    assert body["cmd"] == "flash"
+    assert body["v"] == PROTOCOL_VERSION
+    assert body["url"] == "/firmware/esp32s3/boopbox-0.2.0.bin"
+    assert body["md5"] == "abc123"
+
+
+async def test_send_flash_requires_connection(settings, devices):
+    svc = _service(settings, _fake_registry(), devices)
+    flash = FlashCmd(url="/firmware/esp32s3/boopbox-0.2.0.bin", md5="abc123")
+    with pytest.raises(RuntimeError):
+        await svc.send_flash("boop-test", flash)
+
+    svc.client = _CapturingClient()
+    await svc.send_flash("boop-test", flash)
+    assert svc.client.published[0][0] == "boopbox/boop-test/cmd"
+
+
+def _version_bytes(firmware: str, chip: str, *, v: int = PROTOCOL_VERSION) -> bytes:
+    return json.dumps({"v": v, "firmware": firmware, "chip": chip}).encode()
+
+
+def test_parse_version_reply_valid():
+    reply = parse_version_reply("boop-test", _version_bytes("0.1.0", "esp32s3"))
+    assert isinstance(reply, VersionReply)
+    assert reply.firmware == "0.1.0"
+    assert reply.chip == "esp32s3"
+
+
+def test_parse_version_reply_unsupported_v_dropped():
+    raw = _version_bytes("0.1.0", "esp32s3", v=PROTOCOL_VERSION + 1)
+    assert parse_version_reply("boop-test", raw) is None
+
+
+def test_parse_version_reply_malformed_dropped():
+    assert parse_version_reply("boop-test", b"\xff not json") is None
+    # Missing required fields at a supported v.
+    assert parse_version_reply("boop-test", json.dumps({"v": 1}).encode()) is None
+
+
+async def test_version_dispatch_routes_to_handler_not_build_response(settings, devices):
+    svc = _service(settings, _fake_registry(), devices)
+    seen: list[tuple[str, VersionReply]] = []
+
+    async def on_reply(device_id, reply):
+        seen.append((device_id, reply))
+
+    svc.on_version_reply = on_reply
+    client = _CapturingClient()
+    await svc._dispatch(
+        client,
+        _Message("boopbox/boop-test/version", _version_bytes("0.3.0", "esp32s3")),
+    )
+
+    # No play/error published for a version reply.
+    assert client.published == []
+    assert len(seen) == 1
+    device_id, reply = seen[0]
+    assert device_id == "boop-test"
+    assert reply.firmware == "0.3.0"
+    assert reply.chip == "esp32s3"
+
+
+async def test_version_reply_stamps_firmware_off_loop(settings, devices):
+    svc = _service(settings, _fake_registry(), devices)
+    client = _CapturingClient()
+    await svc._dispatch(
+        client,
+        _Message("boopbox/boop-test/version", _version_bytes("0.4.2", "esp32s3")),
+    )
+    row = await devices.get(DEVICE)
+    assert row.firmware_version == "0.4.2"
+    assert row.last_seen_at is not None
+
+
+async def test_bad_version_reply_no_stamp_no_handler(settings, devices):
+    svc = _service(settings, _fake_registry(), devices)
+    # The handler must not run for a dropped reply; a plain lambda records calls.
+    called = []
+    svc.on_version_reply = lambda d, r: called.append((d, r))
+    client = _CapturingClient()
+    await svc._dispatch(client, _Message("boopbox/boop-test/version", b"\xff not json"))
+    assert client.published == []
+    assert called == []
+    assert (await devices.get(DEVICE)).firmware_version is None
+
+
+async def test_no_cross_talk_boop_vs_version(settings, devices):
+    svc = _service(settings, _fake_registry(), devices)
+    seen = []
+
+    async def on_reply(device_id, reply):
+        seen.append((device_id, reply))
+
+    svc.on_version_reply = on_reply
+
+    # A /boop never produces a flash (only play/error) and never a version reply.
+    client = _CapturingClient()
+    await svc._dispatch(
+        client, _Message("boopbox/boop-test/boop", _boop_bytes("boop/item"))
+    )
+    assert len(client.published) == 1
+    assert client.published[0][0] == "boopbox/boop-test/play"
+    assert seen == []
+
+    # A /version never produces a play/error.
+    client2 = _CapturingClient()
+    await svc._dispatch(
+        client2,
+        _Message("boopbox/boop-test/version", _version_bytes("0.1.0", "esp32s3")),
+    )
+    assert client2.published == []
+    assert len(seen) == 1
+
+
+def test_device_id_from_topic_only_boop():
+    assert device_id_from_topic("boopbox/abc/boop") == "abc"
+    assert device_id_from_topic("boopbox/abc/version") is None
+    assert device_id_from_topic("boopbox/abc/play") is None

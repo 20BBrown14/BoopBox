@@ -71,11 +71,49 @@ class Error(BaseModel):
 
 
 class CmdName(StrEnum):
-    check_update = "check_update"
+    get_version = "get_version"
+    flash = "flash"
 
 
 class Cmd(BaseModel):
-    """Command published to `boopbox/<id>/cmd` or `boopbox/all/cmd`."""
+    """Thin command published to `boopbox/<id>/cmd` or `boopbox/all/cmd`.
+
+    The `{v, cmd}` shape for commands that need no payload (e.g. `get_version`).
+    The fat `flash` command is a separate model (`FlashCmd`) so this shape stays
+    untouched.
+    """
 
     v: int = PROTOCOL_VERSION
     cmd: CmdName
+
+
+class FlashCmd(BaseModel):
+    """Fat `flash` command published to `boopbox/<id>/cmd` (per-device only).
+
+    Carries what ESPHome's `ota: http_request.flash` action needs inline: the
+    bin `url` and its `md5`. Both come from P8's firmware index (never
+    hand-built): `url` is the absolute, non-redirecting served path and `md5` is
+    computed from the bin's disk bytes. `cmd` is fixed to `flash` so the wire
+    payload is self-describing and a consumer routes on `cmd` regardless of which
+    model produced it.
+    """
+
+    v: int = PROTOCOL_VERSION
+    cmd: CmdName = CmdName.flash
+    url: str
+    md5: str
+
+
+class VersionReply(BaseModel):
+    """Inbound reply on `boopbox/<id>/version`.
+
+    The box publishes its running firmware here in reply to `get_version` (and
+    optionally unsolicited, e.g. on boot). `v` is the protocol version (read from
+    the wire, no default, so the server version-checks it). `firmware` is the
+    version string; `chip` is the chip family and must match P8's chip subfolder
+    keys (e.g. `esp32s3`) so a flash targets the box's own reported chip.
+    """
+
+    v: int
+    firmware: str
+    chip: str

@@ -1,5 +1,14 @@
 from app.errors import ErrorCode
-from app.models import Boop, BoopRef, Cmd, CmdName, Error, Play
+from app.models import (
+    Boop,
+    BoopRef,
+    Cmd,
+    CmdName,
+    Error,
+    FlashCmd,
+    Play,
+    VersionReply,
+)
 from app.protocol import PROTOCOL_VERSION
 
 BOOP_JSON = {
@@ -94,13 +103,34 @@ def test_error_code_serializes_to_lowercase_string():
 
 
 def test_cmd_defaults_and_shape():
-    cmd = Cmd(cmd=CmdName.check_update)
+    cmd = Cmd(cmd=CmdName.get_version)
     dumped = cmd.model_dump()
     assert dumped["v"] == PROTOCOL_VERSION
-    assert dumped["cmd"] == "check_update"
+    assert dumped["cmd"] == "get_version"
 
 
 def test_outbound_models_default_version():
     assert Play(url="u").v == PROTOCOL_VERSION
     assert Error(code=ErrorCode.forbidden, message="x").v == PROTOCOL_VERSION
-    assert Cmd(cmd=CmdName.check_update).v == PROTOCOL_VERSION
+    assert Cmd(cmd=CmdName.get_version).v == PROTOCOL_VERSION
+    assert FlashCmd(url="/firmware/esp32s3/boopbox-0.1.0.bin", md5="x").v == (
+        PROTOCOL_VERSION
+    )
+
+
+def test_flash_cmd_shape_and_fixed_cmd():
+    flash = FlashCmd(url="/firmware/esp32s3/boopbox-0.2.0.bin", md5="deadbeef")
+    dumped = flash.model_dump()
+    assert dumped["cmd"] == "flash"
+    assert dumped["v"] == PROTOCOL_VERSION
+    assert dumped["url"] == "/firmware/esp32s3/boopbox-0.2.0.bin"
+    assert dumped["md5"] == "deadbeef"
+
+
+def test_version_reply_parses_wire_shape():
+    reply = VersionReply.model_validate(
+        {"v": 1, "firmware": "0.1.0", "chip": "esp32s3"}
+    )
+    assert reply.v == 1
+    assert reply.firmware == "0.1.0"
+    assert reply.chip == "esp32s3"
