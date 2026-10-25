@@ -11,6 +11,7 @@ from app.types.config import FileConfig
 
 DEFAULT_CONFIG_PATH = "config.yaml"
 DEFAULT_DB_PATH = "devices.db"
+DEFAULT_FIRMWARE_DIR = "firmware-bins"
 
 
 def source_api_key_env(source_id: str) -> str:
@@ -55,6 +56,10 @@ class Settings(BaseSettings):
     # Paths.
     config_path: str = DEFAULT_CONFIG_PATH
     db_path: str = DEFAULT_DB_PATH
+
+    # Where the admin mounts built OTA bins. Distinct from the repo's firmware/
+    # ESPHome-source dir; see the firmware layout docs.
+    firmware_dir: str = DEFAULT_FIRMWARE_DIR
 
     # MQTT connection.
     mqtt_host: str = "localhost"

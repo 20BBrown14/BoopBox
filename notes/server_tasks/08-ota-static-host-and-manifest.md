@@ -3,26 +3,50 @@
 Implementation task list for piece **P8** from `../task_list.md`. Depends on P1
 (scaffolding) and P2 (config) — both implemented. P1–P7 are in place.
 
-Delivers the `/firmware/...` static host and a generated, cached
-`/firmware/manifest.json` in ESP-Web-Tools format with the ESPHome `ota` block
-(md5 from the bin bytes on disk). Built at startup and on config reload, cached,
-recomputed when a bin's mtime changes.
+Delivers the `/firmware/...` static host, a generated/cached ESP-Web-Tools
+`/firmware/manifest.json`, and an in-memory **firmware index** the server reads
+to build OTA commands. Built at startup and on config reload, cached, recomputed
+when a bin's mtime changes.
+
+## Update model: server-driven push, no box polling
+
+This piece is scoped against a **server-driven push** OTA model, not the stock
+ESPHome `update: http_request` poller:
+
+- Boxes do **not** poll a manifest on a timer. The server decides when a box
+  updates and tells it to, via an MQTT `flash` command carrying the bin URL and
+  md5 (P7). The box wires that straight into ESPHome's
+  `ota: http_request.flash` action.
+- Every update funnels through one decision path: **query the box's version →
+  compare to the target → send `flash` only if the box is stale.** Triggers
+  (admin upload, a box reporting an outdated version, an admin endpoint) only
+  *initiate* that path; none flashes a box directly. That path, the `flash`/
+  `get_version` commands, the `/version` reply, and the push policy live in
+  **P7 (protocol)** and **P11 (policy)** — see
+  `08a-ota-protocol-additions.md` and `11-ota-version-policy-and-push.md`.
+
+**What stays box-facing here:** the ESP-Web-Tools `manifest.json` is retained for
+**browser-based provisioning** (ESP-Web-Tools flashing a fresh box over USB),
+not for on-device auto-update. The server also reads the same on-disk bins as an
+**internal firmware index** (chip → version, path, md5, mtime) that P11's
+command builder consults. P8 owns serving the bins, generating the manifest, and
+the index; it does not publish commands or track device versions.
 
 ## Builds on existing scaffolding
 
 - `app/main.py` lifespan — the startup block has the reserved marker **"P8 builds
   the manifest here"** (currently on the `mqtt.start()` line). **P8 builds the
-  initial manifest at startup** and stashes the manifest service/cache on
+  initial manifest + index at startup** and stashes the service/cache on
   `app.state` (alongside `db`, `devices`, `sources`, `mqtt`).
 - `app/routes/` package — routers are defined per-file and re-exported from
   `app/routes/__init__.py`, then `app.include_router(...)` in `create_app`
-  (see `stream_router`). **P8 adds a firmware router the same way** (e.g.
-  `firmware_router`), or mounts a `StaticFiles` app — see task 2.
+  (see `stream_router`). **P8 adds firmware serving the same way** — a
+  `StaticFiles` mount plus a generated manifest route (see task 2).
 - `app/types/config.py` (P2) — `OtaConfig.manifest_version` (default `"0.1.0"`),
   reachable via `Settings.config.ota.manifest_version`. **This is the single
-  source of truth for the manifest `version`.**
+  source of truth for the manifest/target `version`.**
 - `config.yaml` already documents `ota.manifest_version`. The firmware **directory
-  path** is new (see task 1) — needs a config/env knob and README docs.
+  path** is new (see task 1) — needs an env knob and README docs.
 
 The repo's `firmware/` holds the ESPHome *source* YAML (`BoopBox_v0.1.0.yaml`),
 not built bins. The OTA host serves **built `.bin` files** from a server-side
@@ -36,17 +60,16 @@ Placement (`server/`) and Python 3.12 are fixed.
 Per the documentation rule, update the README config reference in this piece:
 
 - [ ] Document `ota.manifest_version` (already present in `config.yaml`) as the
-      field that drives the hosted manifest's `version`.
-- [ ] Document the **firmware directory path** knob introduced in task 1 (config
-      key or `.env` var) and its default.
+      field that drives both the hosted manifest's `version` and the OTA target
+      version P11 compares against.
+- [ ] Document the **firmware directory path** knob (task 1) and its default.
 - [ ] Document the **firmware directory layout** the admin must follow (per-chip
       subdir, bin naming) so a build can be published by dropping a file + bumping
       the version. Operational reference only — no rationale.
 - [ ] Document `BOOPBOX_FIRMWARE_DIR` (`.env`) and its default in the `.env`
       reference, marked non-secret.
-- [ ] Document `ota.check_now_cron` (`config.yaml`, empty = disabled) and the
-      `POST /ota/check-now` endpoint (scopes + request shape, and that it is
-      currently unauthenticated pending the UI auth story).
+- [ ] Note that the hosted `manifest.json` is for browser provisioning; on-device
+      updates are server-pushed (cross-reference P11) — operational note only.
 
 ## Contract this piece must expose
 
@@ -55,9 +78,10 @@ Per the documentation rule, update the README config reference in this piece:
 - **Manifest generator / cache** — builds the ESP-Web-Tools manifest from the
   on-disk bins + `ota.manifest_version`, caches it, recomputes on mtime change,
   rebuilds at startup and on config reload.
-- **check-now triggers** — a `POST /ota/check-now` endpoint (explicit, per-device
-  or broadcast) and an optional cron schedule (automatic broadcast), both calling
-  P7's `publish_cmd`. P8 does not re-implement the MQTT publish.
+- **Firmware index** — the same on-disk scan exposed as a lookup P11 uses:
+  `index(chip) -> { version, path, md5 } | None` for the configured version.
+  The manifest and the index are two views of one cached build; md5 is computed
+  once.
 
 ## Firmware layout (from the design — must match)
 
@@ -67,14 +91,15 @@ Per the documentation rule, update the README config reference in this piece:
 <firmware_dir>/esp32s3/boopbox-0.1.0.bin  # older versions kept for rollback
 ```
 
-- One **chip subfolder** per chip family (MVP: `esp32s3`). The manifest emits one
-  `builds` entry per chip subfolder that holds a bin **at the configured version**.
+- One **chip subfolder** per chip family (MVP: `esp32s3`). The manifest/index
+  emit one entry per chip subfolder that holds a bin **at the configured
+  version**.
 - Bin naming carries the version: `boopbox-<version>.bin`. Pin the exact naming
   convention and document it (the generator must locate the bin for
   `manifest_version` in each chip dir).
 - Firmware URLs are **absolute, non-redirecting** paths (leading `/`) so they
-  resolve against the box's `source:` with no redirect (ESPHome's HTTP Request
-  component has a small URL buffer; redirects can fail).
+  resolve against the box's request with no redirect (ESPHome's HTTP Request
+  component has a ~512-byte URL buffer; redirects can fail with "Out of buffer").
 
 ## Manifest shape (ESP-Web-Tools + ESPHome `ota`)
 
@@ -102,133 +127,79 @@ Per the documentation rule, update the README config reference in this piece:
 - `chipFamily` maps from the chip subfolder name (e.g. `esp32s3` → `ESP32-S3`);
   pin the subfolder→chipFamily mapping.
 - `path` is the absolute served path to that chip's bin at the version.
-- `summary`/`release_url` may be empty for MVP (or sourced from config if desired;
-  keep optional).
+- `summary`/`release_url` may be empty for MVP.
 
 ## Tasks
 
 ### 1. Firmware directory config knob
 - [ ] Add `BOOPBOX_FIRMWARE_DIR` to `.env` / `Settings` (deploy-specific path to
       where the admin mounts built bins; not a secret but deploy-specific, so it
-      lives with the other env knobs). Give a sensible default (e.g. an absolute
-      container path like `/firmware`, or `firmware/` under the server working
-      dir). Add the field to `Settings` with the default, matching the existing P2
-      patterns.
+      lives with the other env knobs). Give a sensible default that does **not**
+      collide with the repo's `firmware/` ESPHome-source dir (e.g.
+      `firmware-bins/` under the server working dir, or an absolute container
+      mount). Add the field to `Settings` matching the existing P2 patterns.
 - [ ] Decide the chip-subfolder → `chipFamily` mapping (MVP: `esp32s3` →
       `ESP32-S3`); a small dict is fine. Pin how unknown subfolders are treated
-      (skip with a log vs error).
+      (skip with a log).
 
 ### 2. Static file serving (`/firmware`)
 - [ ] Serve `/firmware/<chip>/<file>` from `<firmware_dir>` with **Range** support
-      (ESP-Web-Tools / ESPHome may issue ranged GETs). FastAPI/Starlette
-      `StaticFiles` supports Range out of the box — mount it at `/firmware`, OR a
-      small router that streams files with Range if more control is wanted. Prefer
-      `StaticFiles` unless the manifest route forces a custom handler.
+      (ESPHome's flash action may issue ranged GETs). Prefer Starlette
+      `StaticFiles` mounted at `/firmware` (Range out of the box).
 - [ ] The manifest route `/firmware/manifest.json` is **generated**, not a static
-      file — it must take precedence over any static `manifest.json`. If using a
-      `StaticFiles` mount at `/firmware`, register the generated manifest route
-      **before/above** the mount so it wins; pin the ordering so a stray on-disk
-      `manifest.json` can't shadow the generated one.
+      file — register it **before** the `StaticFiles` mount so it wins over any
+      stray on-disk `manifest.json`. Pin the ordering.
 
-### 3. Manifest generator
+### 3. Manifest generator + firmware index
 - [ ] A function that, given `firmware_dir` + `manifest_version` + the chip
-      mapping, builds the manifest dict:
-  - [ ] For each chip subfolder, find the bin named for `manifest_version`.
-  - [ ] Compute its **md5 from the on-disk bytes** (read the file, `hashlib.md5`).
-        Do the read off the event loop (it is file I/O; `asyncio.to_thread` or do
-        it in the cached build step which runs at startup/reload, not per request).
-  - [ ] Emit one `builds` entry per chip subfolder that has the versioned bin;
-        skip chip dirs without it (log).
-  - [ ] Set absolute `path` (`/firmware/<chip>/boopbox-<version>.bin`),
-        `chipFamily` from the mapping, `name` `"BoopBox"`, `version` from config.
-- [ ] If no chip dir has a bin at the version, emit a manifest with an empty
-      `builds` list and log a warning — never fail startup. An empty-builds
-      manifest is harmless; a hard failure would block boot over a missing bin.
+      mapping, builds both the manifest dict and the index:
+  - [ ] For each known chip subfolder, find the bin named for `manifest_version`.
+  - [ ] Compute its **md5 from the on-disk bytes** (`hashlib.md5`), off the event
+        loop (file I/O; do it in the cached build step that runs at
+        startup/reload, not per request).
+  - [ ] Emit one manifest `builds` entry and one index entry per chip subfolder
+        that has the versioned bin; skip chip dirs without it (log).
+  - [ ] Absolute `path` (`/firmware/<chip>/boopbox-<version>.bin`), `chipFamily`
+        from the mapping, `name` `"BoopBox"`, `version` from config.
+- [ ] If no chip dir has a bin at the version, emit an empty-`builds` manifest and
+      an empty index, and log a warning — **never fail startup**.
 
 ### 4. Caching + invalidation
-- [ ] A manifest cache (a small service object on `app.state`, e.g.
-      `app.state.manifest`) holding the built manifest JSON and the set of
-      (bin path → mtime) it was built from.
-- [ ] **Build at startup** (lifespan, the reserved marker) and **on config
-      reload** (if/when a reload path exists; at minimum expose a `rebuild()` the
-      reload or an admin hook can call).
-- [ ] **Recompute when a bin's mtime changes:** on each manifest request, cheaply
-      stat the relevant bin(s); if any mtime differs from the cached set, rebuild
-      (recompute md5) and refresh the cache; otherwise serve the cached JSON. The
-      6h fleet polls must **not** recompute md5 every request — only on mtime drift.
+- [ ] A cache service on `app.state` (e.g. `app.state.firmware`) holding the built
+      manifest JSON, the index, and the (bin path → mtime) set it was built from.
+- [ ] **Build at startup** (lifespan, the reserved marker) and expose a
+      `rebuild()` for config reload / an admin hook.
+- [ ] **Recompute when a bin's mtime changes:** on each manifest request (and on
+      index reads P11 makes), cheaply stat the relevant bin(s); rebuild only on
+      mtime drift (added/removed/changed), otherwise reuse the cache. md5 is not
+      recomputed unless a bin changed.
 - [ ] Serve `/firmware/manifest.json` with `Content-Type: application/json` from
       the cache.
 
 ### 5. Wire into the app
-- [ ] Build the initial manifest in the lifespan startup (replace/accompany the
+- [ ] Build the initial manifest + index in the lifespan startup (replace the
       "P8 builds the manifest here" marker) and stash the cache on `app.state`.
-- [ ] Add the firmware router / static mount and the `POST /ota/check-now` router
-      in `create_app` via the `app/routes/__init__.py` re-export pattern.
-- [ ] Start the check-now cron task (task 6b) in the lifespan startup and cancel it
-      in shutdown, alongside the MQTT loop; a disabled schedule starts nothing.
+- [ ] Add the firmware static mount + generated manifest route in `create_app`
+      via the `app/routes/__init__.py` re-export pattern.
 
-### 6. check-now nudge — two triggers (coordinate with P7)
-P7 owns the MQTT publish (`publish_cmd` sending `Cmd(cmd=CmdName.check_update)` to
-`boopbox/<id>/cmd` and `boopbox/all/cmd`). P8 **does not re-implement** the
-publish — it adds the two ways to trigger it. Both are supported for MVP.
-
-**6a. API endpoint (explicit trigger).**
-- [ ] Add a POST endpoint (e.g. `POST /ota/check-now`) that calls P7's
-      `publish_cmd`. The future UI uses this endpoint.
-- [ ] Support both scopes: a broadcast to the whole fleet (`boopbox/all/cmd`) and a
-      per-device nudge (`boopbox/<id>/cmd`). Pin the request shape — e.g. an
-      optional `device_id` in the body/query; absent = broadcast, present = that
-      device. Validate an unknown device id (reject vs best-effort — pin it;
-      rejecting with a 404 against the device repo is cleaner).
-- [ ] Reach `app.state.mqtt` for the publisher; return a small JSON ack. Add the
-      router via the `app/routes/__init__.py` re-export pattern.
-- [ ] Note: this endpoint publishes a fleet command — it is an admin action, not a
-      box-facing one. Flag that it should sit behind the future UI auth; for the
-      config-file MVP there is no auth layer yet, so document that it is currently
-      unauthenticated (consistent with the rest of the MVP admin surface) and is a
-      candidate for the auth story when the UI lands.
-
-**6b. Cron schedule (automatic trigger).**
-- [ ] Add an OTA check-now **schedule** config knob: a cron expression (or a
-      simple interval) that, when set, periodically fires a broadcast check-now.
-      Decide placement — a cron string is structured, non-secret, admin-edited
-      config, so it belongs in `config.yaml` under `ota` (e.g.
-      `ota.check_now_cron`), not `.env`. Pin the key and its default (unset/empty =
-      no automatic nudge).
-- [ ] Add the field to `OtaConfig` (optional; empty/None = disabled).
-- [ ] Run the schedule on the app's single asyncio loop, owned by the lifespan
-      (start in startup, cancel in shutdown — same discipline as the MQTT loop).
-      Pick the mechanism: a small async scheduler task parsing the cron
-      (a pinned `croniter`-style dep) or, if only an interval is needed, an
-      `asyncio.sleep` loop. If a cron parser dep is added, pin it in
-      `pyproject.toml` with `==`.
-- [ ] On each fire, call P7's `publish_cmd` broadcast. A disabled/empty schedule
-      starts no task.
-
-### 7. Tests (`tests/test_ota.py`)
-- [ ] **md5 matches disk:** drop a bin, generate the manifest, assert `md5` equals
-      `hashlib.md5(bin_bytes)`.
-- [ ] **version from config:** manifest `version` equals
-      `ota.manifest_version`, independent of filename.
-- [ ] **per-chip builds:** two chip subdirs each with the versioned bin → two
-      `builds` entries with correct `chipFamily` and absolute `path`; a chip dir
-      missing the versioned bin is skipped.
-- [ ] **cache invalidation on mtime:** serve once (cached), touch the bin to bump
-      mtime (or rewrite it), serve again → manifest recomputed (md5 reflects new
-      bytes); without a change, the cache is reused (assert no recompute — e.g. spy
-      on the md5 function).
+### 6. Tests (`tests/test_ota.py`)
+- [ ] **md5 matches disk:** drop a bin, build, assert `md5` == `hashlib.md5(bytes)`.
+- [ ] **version from config:** manifest/index `version` == `ota.manifest_version`,
+      independent of filename.
+- [ ] **per-chip entries:** two chip subdirs each with the versioned bin → two
+      `builds` entries + two index entries with correct `chipFamily`/absolute
+      `path`; a chip dir missing the versioned bin is skipped.
+- [ ] **cache invalidation on mtime:** serve once (cached), bump the bin mtime,
+      serve again → recomputed (new md5); without a change, cache reused (spy on
+      the md5 function to assert no recompute).
 - [ ] **firmware served with Range:** GET a bin with `Range: bytes=start-end` →
       206 + correct slice + `Content-Range`.
 - [ ] **manifest wins over static file:** a stray on-disk `manifest.json` does not
       shadow the generated route.
-- [ ] **absolute paths:** `builds[].ota.path` is absolute (leading `/`), no
-      redirect.
-- [ ] **check-now endpoint:** `POST /ota/check-now` with no body → P7 publishes a
-      broadcast `check_update` to `boopbox/all/cmd`; with a `device_id` → publishes
-      to `boopbox/<id>/cmd`; an unknown device id is rejected (per task 6a). Use a
-      mocked/captured `publish_cmd` (as `test_mqtt` does for the client).
-- [ ] **cron schedule:** with `ota.check_now_cron` set, the scheduled fire calls
-      the broadcast publish; empty/unset starts no task and never fires.
+- [ ] **absolute paths:** `builds[].ota.path` and index `path` are absolute
+      (leading `/`).
+- [ ] **index lookup:** `index(chip)` returns `{version, path, md5}` for a present
+      chip and `None` for a chip without the versioned bin.
 
 ## Verification / demo (piece acceptance)
 
@@ -237,37 +208,32 @@ publish — it adds the two ways to trigger it. Both are supported for MVP.
       shape with an md5 matching the file and an absolute path.
 - [ ] Fetch the bin itself (including a ranged request) and get the bytes back.
 - [ ] Change the bin on disk; the next manifest fetch reflects the new md5.
-- [ ] `POST /ota/check-now` publishes a broadcast `check_update`; with a
-      `device_id` it targets that box.
-- [ ] With `ota.check_now_cron` set, the fleet is nudged automatically on schedule.
+- [ ] The firmware index returns `{version, path, md5}` for `esp32s3` (what P11's
+      flash-command builder will consume).
 
 ## Notes / watch-outs
 
-- **md5 from disk, never typed.** The box rejects an update whose md5 doesn't
-  match, and a wrong md5 fails the whole fleet silently. The server computing it
-  from the bytes is the whole point of generating the manifest.
+- **md5 from disk, never typed.** The box rejects a flash whose md5 doesn't match
+  the downloaded bytes; a wrong md5 fails the update silently. The server
+  computing it from the bytes is the whole point.
 - **`version` from config only.** `ota.manifest_version` is the single source of
-  truth; do not derive it from a filename or let a bin's name override it. The
-  generator *locates* the bin by that version.
+  truth for both the manifest and the OTA target; do not derive it from a
+  filename. The generator *locates* the bin by that version.
 - **Absolute, non-redirecting firmware paths.** ESPHome's HTTP Request component
-  has a ~512-byte URL buffer; redirecting manifest/bin URLs can fail. Serve direct
+  has a ~512-byte URL buffer; redirecting bin URLs can fail. Serve direct
   absolute paths.
-- **Don't recompute md5 every poll.** The fleet polls on a 6h interval; the cache
-  must only recompute on a bin mtime change, not per request. But it must stay
-  consistent with disk — stat is cheap, hashing is not.
+- **Don't recompute md5 every read.** Stat is cheap, hashing is not; recompute
+  only on a bin mtime change, but stay consistent with disk.
 - **Generated manifest must win** over any static `manifest.json` in the firmware
-  dir. Pin route/mount ordering so a stray file can't shadow it.
+  dir. Pin route/mount ordering.
 - **Server hosts bins; it does not build firmware.** The repo `firmware/` YAML is
-  the ESPHome source (a separate concern); the admin places built `.bin` files in
-  the server's firmware dir.
-- **check-now is P7's publish, triggered two ways.** P8 adds the triggers — the
-  `POST /ota/check-now` endpoint (explicit; the UI will use it) and the optional
-  `ota.check_now_cron` schedule (automatic broadcast) — but both call P7's
-  `publish_cmd`; never duplicate the MQTT publish logic.
-- **The check-now endpoint is an admin/fleet action.** It publishes a command to
-  boxes, so it belongs behind the future UI auth. The config-file MVP has no auth
-  layer, so it ships unauthenticated like the rest of the MVP admin surface —
-  document that and mark it for the auth story. Keep it off any box-facing path.
-- **Scheduler on the single loop.** The cron task is lifespan-owned (start in
-  startup, cancel in shutdown), on the same asyncio loop as HTTP and MQTT — same
-  discipline as the MQTT service.
+  the ESPHome source; the admin places built `.bin` files in the server's
+  firmware dir.
+- **No box poller; no check-now in P8.** The old check-now endpoint + cron are
+  gone from this piece. Update triggering and the version-check/push policy live
+  in P11; the `flash`/`get_version`/`version` protocol lives in P7 (see
+  `08a-ota-protocol-additions.md`). P8 serves bins, generates the manifest, and
+  exposes the index.
+- **Manifest is for browser provisioning, not auto-update.** Nothing on the box
+  polls it; it exists so ESP-Web-Tools can flash a fresh box over USB. The server
+  reads the same bins via the index to build push commands.

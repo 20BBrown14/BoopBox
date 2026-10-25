@@ -20,6 +20,7 @@ flowchart TB
     P8["P8: OTA static host + generated manifest"]
     P9["P9: Jellyfin source impl"]
     P10["P10: Broker config + Compose integration"]
+    P11["P11: OTA version-check + push policy"]
 
     P1 --> P2
     P1 --> P3
@@ -36,7 +37,21 @@ flowchart TB
     P6 --> P9
     P1 --> P10
     P7 --> P10
+    P7 --> P11
+    P8 --> P11
 ```
+
+> **OTA redesign (supersedes the original P8 framing below):** OTA is
+> server-driven push, not a box-side manifest poller. P8 is reduced to the
+> `/firmware` static host + ESP-Web-Tools manifest (kept for browser
+> provisioning) + an in-memory firmware index. P7 gains OTA protocol additions
+> (`get_version`/`flash` commands + a `boopbox/<id>/version` reply + its
+> consumer) — see `server_tasks/08a-ota-protocol-additions.md`. The version-check
+> and push *policy* (three triggers, the flash decision) is a new piece **P11** —
+> see `server_tasks/11-ota-version-policy-and-push.md`. Auth for the OTA surface
+> is deferred (MVP ships it unauthenticated) — see
+> `server_tasks/ota-auth-design.md`. The P8 bullet below is kept for history but
+> its objective is restated in the piece file.
 
 ## Documentation rule (applies to every piece)
 
@@ -159,6 +174,14 @@ boop; URL uses `public_base_url`; last_seen updated off-loop.
 working signed URL (served by P6); publish an unknown slug, observe the `error`.
 
 ### P8 — OTA static host + generated manifest
+**Redesigned (server-driven push):** the objective below is superseded by
+`server_tasks/08-ota-static-host-and-manifest.md`. P8 now ships the `/firmware`
+static host + the ESP-Web-Tools manifest (for browser provisioning only, not a
+box poller) + an in-memory firmware index for P11. The check-now/cron framing is
+dropped; the OTA command protocol moves to P7
+(`08a-ota-protocol-additions.md`) and the push policy to P11. Original objective
+retained below for history.
+
 **Objective:** Serve `/firmware/...` static files and a generated, cached
 `/firmware/manifest.json` in ESP-Web-Tools format with the ESPHome `ota` block
 (md5 computed from the bin bytes on disk, path, version, chipFamily). Built at
@@ -201,3 +224,27 @@ app connects; end-to-end boop→play→stream works through the bundled broker; 
 denies cross-device publish and allows the broadcast subscribe.
 **Demo:** full local stack up via the Compose profile; a boop through the real
 broker yields a played stream; an ACL denial shown for a cross-device publish.
+### P11 — OTA version-check + push policy
+**Objective:** The server-driven OTA policy (added in the OTA redesign). Depends
+on P8 (firmware index + static host) and the P7 OTA protocol additions
+(`server_tasks/08a-ota-protocol-additions.md`: `get_version`/`flash` commands + a
+`boopbox/<id>/version` reply carrying firmware version + chip, and its MQTT
+consumer). A single **stateless** decision path: query a box's version → compare
+to the target (`ota.manifest_version`) → publish a per-device `flash` (with the
+`{url, md5}` from P8's index for the box's reported chip) only when the box is
+stale. Three triggers, all funneling through that path: (a) admin uploads a new
+version — configurable auto-push knob; (b) a box reports an outdated version
+(solicited or unsolicited) — same handler; (c) an admin endpoint (future UI) that
+triggers the version query, not a forced flash. Never flash a server-inferred
+chip; the chip comes from the box's `/version` reply. Endpoint ships
+unauthenticated for the MVP (flagged for the auth story — see
+`server_tasks/ota-auth-design.md`).
+**Contract:** the OTA policy service on `app.state`; the admin trigger endpoint.
+**Test:** stale reply → per-device `flash` with the index's `{url, md5}`; current
+reply → no flash; unknown/missing chip → no flash (logged); endpoint triggers a
+`get_version` query only (never a direct flash), unknown device id → 404;
+auto-push knob off → a new-version publish queries nothing, on → broadcasts
+`get_version`.
+**Demo:** upload a new version with the auto-push knob on → online stale boxes get
+queried and flashed; hit the admin endpoint for one box → it is queried and (if
+stale) updated; a current box is left alone.
