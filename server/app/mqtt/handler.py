@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.errors import ErrorCode, mqtt_error
-from app.models import Boop, BoopRef, Error, Play
+from app.models import Boop, BoopRef, Error, Play, VersionReply
 from app.mqtt.selection import select_entry
 from app.protocol import is_supported
 from app.resolver import resolve
@@ -72,12 +72,12 @@ async def build_response(
         return mqtt_error(ErrorCode.unsupported_version, BoopRef())
 
     version = payload.get("v") if isinstance(payload, dict) else None
-    if not isinstance(version, int) or isinstance(version, bool) or not is_supported(
-        version
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or not is_supported(version)
     ):
-        return mqtt_error(
-            ErrorCode.unsupported_version, _best_effort_ref(payload)
-        )
+        return mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
 
     # Step 2: parse the Boop model at a supported version.
     try:
@@ -109,9 +109,7 @@ async def build_response(
     try:
         duration = await source.duration(selection.item)
     except SourceError as err:
-        logger.warning(
-            "boop from %s: duration failed: %s", device_id, err.log_detail
-        )
+        logger.warning("boop from %s: duration failed: %s", device_id, err.log_detail)
         return mqtt_error(err.code, ref)
 
     token = mint(
@@ -133,3 +131,35 @@ async def build_response(
         url=_stream_url(settings, token),
         duration=duration,
     )
+
+
+def parse_version_reply(device_id: str, raw: bytes) -> VersionReply | None:
+    """Parse a `boopbox/<id>/version` reply, or None if it should be dropped.
+
+    Separate from `build_response` (the boop -> one play/error contract): a
+    version reply produces no response, only a parsed value the push policy (P11)
+    acts on. Undecodable, unsupported-`v`, or structurally invalid payloads are
+    dropped with a log and no side effect.
+    """
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        logger.warning("version from %s: undecodable payload, dropping", device_id)
+        return None
+
+    version = payload.get("v") if isinstance(payload, dict) else None
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or not is_supported(version)
+    ):
+        logger.warning(
+            "version from %s: unsupported/missing v=%r, dropping", device_id, version
+        )
+        return None
+
+    try:
+        return VersionReply.model_validate(payload)
+    except ValidationError:
+        logger.warning("version from %s: invalid structure at v=%s", device_id, version)
+        return None
