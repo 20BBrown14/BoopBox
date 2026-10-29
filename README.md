@@ -71,6 +71,101 @@ The container binds `0.0.0.0:9685` and Compose maps it to host port `9685`:
 curl http://127.0.0.1:9685/health
 ```
 
+This runs the app alone. The app is always just an MQTT **client**; it never
+starts a broker. Point it at a broker with the `BOOPBOX_MQTT_*` settings, or
+bring up the bundled broker with the profile below.
+
+### MQTT broker: bundled vs external
+
+The broker is a separate service. "Bundled vs external" is purely a Compose/env
+choice — there is no app-side detection.
+
+**Bundled broker** (local Mosquitto under the `bundled-broker` profile):
+
+```bash
+cd server
+docker compose --profile bundled-broker up
+```
+
+This starts both the broker and the app. Before first run, provision the broker
+accounts (see "Broker accounts & ACLs" below) and set these in `server/.env` so
+the app reaches the bundled service:
+
+```
+BOOPBOX_MQTT_HOST=mosquitto
+BOOPBOX_MQTT_PORT=1883
+BOOPBOX_MQTT_USERNAME=boopbox-server
+BOOPBOX_MQTT_PASSWORD=<server account password>
+```
+
+The app's reconnect loop tolerates a not-yet-up broker, so start ordering is a
+nicety, not a requirement.
+
+**External broker** (omit the profile):
+
+```bash
+cd server
+docker compose up
+```
+
+No bundled broker starts. Point `BOOPBOX_MQTT_*` in `server/.env` at the admin's
+broker and its credentials.
+
+#### Ports: local vs TLS
+
+- **1883** — local/plain, the bundled-broker default.
+- **8883** — TLS/remote. TLS and cert provisioning are **deferred** and not wired
+  in this repo. The app already supports `BOOPBOX_MQTT_TLS` + `BOOPBOX_MQTT_TLS_CA`
+  for when an admin fronts the broker with TLS; fuller production/fleet deployment
+  is out of scope here.
+
+#### Broker config & ACL files
+
+The bundled broker's config lives under `server/mosquitto/`:
+
+- `mosquitto.conf` — listener on 1883, `allow_anonymous false`, and pointers to
+  the password and ACL files. Authenticated usernames are required so the ACL
+  pattern can key on `%u`.
+- `aclfile` — the topic ACLs (see below). ACLs live entirely in the broker; the
+  app enforces nothing.
+- `password_file.example` — a documented sample. Generate the real
+  `server/mosquitto/password_file` with `mosquitto_passwd` (it holds hashed
+  secrets and is gitignored).
+
+Compose mounts these read-only into the container at
+`/mosquitto/config/{mosquitto.conf,aclfile,password_file}` and persists broker
+data in `server/mosquitto-data/`.
+
+#### Broker accounts & ACLs
+
+Two kinds of account:
+
+- **Server account** — one user with broad read/write across `boopbox/#`. It
+  talks to every device and owns the broadcast publish. Its username must match
+  `BOOPBOX_MQTT_USERNAME` (the sample uses `boopbox-server`).
+- **Per-device box accounts** — one per box, whose **username is its device id**.
+  Each box is confined to its own `boopbox/<id>/#` subtree: it may publish only
+  its `boop`/`version`, read only its `play`/`error`/`cmd`, and may **read** the
+  broadcast `boopbox/all/cmd` but never publish there. The per-device publish
+  restriction is the security priority — without it a leaked box credential could
+  inject commands to other devices or the `cmd`/`flash` channel.
+
+Generate the password file (hashed; keep it out of git):
+
+```bash
+cd server
+# Server account (must match BOOPBOX_MQTT_USERNAME)
+mosquitto_passwd -c mosquitto/password_file boopbox-server
+# Seed box account (username = BOOPBOX_SEED_DEVICE_ID, e.g. boop-test)
+mosquitto_passwd mosquitto/password_file boop-test
+# Each additional box, by device id
+mosquitto_passwd mosquitto/password_file <device-id>
+```
+
+Replace the `boopbox-server` placeholder in `mosquitto/aclfile` if you use a
+different server username. Use placeholders in committed files; never commit real
+secrets.
+
 ### Run tests
 
 ```bash
@@ -275,6 +370,13 @@ connection to the broker at startup and subscribes to `boopbox/+/boop`, so the
 broker must be reachable with these settings for boops to be answered.
 `BOOPBOX_PUBLIC_BASE_URL` is consumed to build the signed stream URL returned in
 each `play`.
+
+For the **bundled** broker, set `BOOPBOX_MQTT_HOST=mosquitto` (the Compose
+service name), `BOOPBOX_MQTT_PORT=1883`, and the server account
+`BOOPBOX_MQTT_USERNAME` / `BOOPBOX_MQTT_PASSWORD` you provisioned with
+`mosquitto_passwd`. For an **external** broker, point `BOOPBOX_MQTT_HOST` at the
+admin's broker and set its credentials (and `BOOPBOX_MQTT_TLS` + CA if it fronts
+TLS). See "MQTT broker: bundled vs external" above.
 
 #### Generating `BOOPBOX_STREAM_SECRET`
 
