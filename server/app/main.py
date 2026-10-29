@@ -8,7 +8,8 @@ from app.config import get_settings
 from app.db import DeviceRepository, connect, init_schema, seed_device
 from app.firmware import FirmwareCache
 from app.mqtt import MqttService
-from app.routes import firmware_router, stream_router
+from app.ota import OtaPolicy
+from app.routes import firmware_router, ota_router, stream_router
 from app.sources import SourceRegistry
 
 
@@ -29,6 +30,16 @@ async def lifespan(app: FastAPI):
     app.state.firmware = FirmwareCache(
         settings.firmware_dir, settings.config.ota.manifest_version
     )
+    # P11: the OTA policy consults the index + target version and publishes via
+    # the MQTT service. Wiring its handler onto the /version consumer closes the
+    # stateless compare-and-maybe-flash path.
+    app.state.ota_policy = OtaPolicy(
+        app.state.firmware,
+        settings.config.ota.manifest_version,
+        mqtt,
+        auto_push_on_publish=settings.config.ota.auto_push_on_publish,
+    )
+    mqtt.on_version_reply = app.state.ota_policy.on_version_reply
     yield
     # Shutdown
     await mqtt.stop()  # stop the MQTT loop before the DB connection closes.
@@ -44,6 +55,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(stream_router)
+    app.include_router(ota_router)
 
     # Generated manifest route must be registered BEFORE the StaticFiles mount
     # so it wins over any stray on-disk firmware/manifest.json.
