@@ -10,3 +10,31 @@ services:
       - ./app-data:/data
     environment:
       BOOPBOX_DB_PATH: /data/devices.db
+    # Ordering nicety only: the app's reconnect loop already tolerates a
+    # not-yet-up broker, so this is not required for correctness. It is ignored
+    # when the bundled-broker profile is not selected (the service won't exist,
+    # but required: false keeps the app runnable against an external broker).
+    depends_on:
+      mosquitto:
+        condition: service_started
+        required: false
+
+  # Bundled Mosquitto broker. Only runs when the bundled-broker profile is
+  # selected (`docker compose --profile bundled-broker up`). Leaving the profile
+  # out means no bundled broker starts — the external-broker case, where the app
+  # points BOOPBOX_MQTT_HOST at the admin's broker via .env.
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    profiles: ["bundled-broker"]
+    ports:
+      # <host>:<container>. The broker listens on 1883 inside the network
+      # (mosquitto.conf + ACLs); the host port is BOOPBOX_BROKER_HOST_PORT,
+      # defaulting to 1884 so it does not collide with a broker already on the
+      # host's 1883. 8883 (TLS/remote) is DEFERRED — not wired here. See the
+      # README deployment section.
+      - "${BOOPBOX_BROKER_HOST_PORT:-1884}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/aclfile:/mosquitto/config/aclfile:ro
+      - ./mosquitto/password_file:/mosquitto/config/password_file:ro
+      - ./mosquitto-data:/mosquitto/data

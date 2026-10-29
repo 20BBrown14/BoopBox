@@ -14,7 +14,7 @@ dependencies = [
     "aiosqlite==0.22.1",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
-    "httpx==0.28.1",
+    "httpx2==2.16.0",
     "pyyaml==6.0.3",
 ]
 
@@ -38,3 +38,9 @@ select = ["E", "F", "I", "UP", "B", "W"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# broker_integration is opt-in: it needs Docker + the bundled broker. The unit
+# suite excludes it by default; run it with `pytest -m broker_integration`.
+addopts = "-m 'not broker_integration'"
+markers = [
+    "broker_integration: broker-backed integration test; needs Docker (opt-in, deselected by default)",
+]
