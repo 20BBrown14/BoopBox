@@ -33,6 +33,9 @@ class StreamingConfig(BaseModel):
 
 class OtaConfig(BaseModel):
     manifest_version: str = "0.1.0"
+    # Gates the auto-push-on-publish trigger. Default off so an upload is
+    # inert until an operator explicitly enables fleet pushes.
+    auto_push_on_publish: bool = False
 
 
 class FileConfig(BaseModel):
