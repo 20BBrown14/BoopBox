@@ -31,3 +31,9 @@ dist/
 
 # Secrets
 .env
+
+# Broker credentials (real password_file is hashed secrets; keep only the sample)
+server/mosquitto/password_file
+
+# Bundled-broker runtime data
+server/mosquitto-data/

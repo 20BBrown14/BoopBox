@@ -10,7 +10,7 @@ client.
 import logging
 from collections.abc import AsyncIterator
 
-import httpx
+import httpx2 as httpx
 
 from app.errors import ErrorCode
 from app.types.source import Range, SourceError
