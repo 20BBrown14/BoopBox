@@ -9,7 +9,8 @@ publishes a boop over MQTT, and the server resolves the tag to media and returns
 a signed stream URL the box plays. The server also hosts OTA firmware updates for
 the fleet.
 
-The Python server lives under [`server/`](server/).
+The Python server lives under [`server/`](server/). The box ↔ server MQTT message
+contract is documented in [`server/docs/mqtt.md`](server/docs/mqtt.md).
 
 ## Development Guide
 
@@ -343,6 +344,45 @@ The hosted `/firmware/manifest.json` is generated from these bins and exists for
 **browser-based provisioning** (ESP-Web-Tools flashing a fresh box over USB).
 On-device updates are **server-pushed** over MQTT, not polled from this manifest.
 
+The bin fetch at `/firmware/<chip>/boopbox-<version>.bin` requires **per-device
+HTTP Basic auth**: the username is the device id and the password is the device's
+OTA secret (checked against a stored hash; a revoked device is refused). The
+generated `/firmware/manifest.json` stays **public** — it is USB-side
+provisioning metadata, not a box-authenticated fetch. See the Authentication
+section for how device secrets are provisioned.
+
+### Authentication
+
+The server recognizes three separate credentials, each accepted only on its own
+surface. A credential for one principal is never valid for another.
+
+| Principal | Credential | Presented as | Guards |
+|-----------|-----------|--------------|--------|
+| User (UI/API) | JWT | `Authorization: Bearer <jwt>` | Human/UI actions (e.g. `POST /ota/update`). |
+| Device — OTA | Per-device OTA secret | HTTP Basic password (username = device id) | Firmware bin fetch (`/firmware/<chip>/…bin`). |
+| Device — API | Per-device API token | `Authorization: Bearer <token>` (+ `X-Device-Id`) | Device-facing API routes. |
+
+**User auth.** `POST /auth/token` with `{"username", "password"}` checks the
+configured `BOOPBOX_AUTH_USERNAME` / `BOOPBOX_AUTH_PASSWORD` and returns a
+short-lived JWT signed with `BOOPBOX_JWT_SECRET` (HS256). Present it as a bearer
+token on user routes. Wrong or unconfigured credentials return `401`. The JWT
+secret must be at least 32 bytes when set; a shorter one fails startup.
+
+**Device auth.** Each device holds two independent secrets, stored server-side
+only as SHA-256 hashes on the device row and checked in constant time. A revoked
+device (`revoked` flag) is refused on both immediately, server-side, with no box
+interaction. The two secrets are deliberately distinct so a leak of one (the OTA
+secret is the more log-exposed) cannot authorize the other.
+
+**Provisioning (MVP).** A real provisioning flow lands later. For now the seed
+device's secrets are supplied via `BOOPBOX_SEED_DEVICE_OTA_SECRET` and
+`BOOPBOX_SEED_DEVICE_API_TOKEN`, hashed onto its row at startup. Generate secrets
+the same way as the stream secret (e.g. `openssl rand -hex 32`).
+
+Transport security (HTTPS/mTLS) is out of scope for the MVP and is expected to be
+terminated ahead of the server. Keep reverse-proxy and application logs from
+capturing the `Authorization` header, since the OTA secret rides in it.
+
 ### `.env` reference
 
 All variables use the `BOOPBOX_` prefix. Values tagged **(secret)** must never be
@@ -351,6 +391,10 @@ committed — keep them in `.env`, not `config.yaml`.
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `BOOPBOX_STREAM_SECRET` | — (required) | **(secret)** HMAC signing secret for stream tokens. |
+| `BOOPBOX_AUTH_USERNAME` | empty | User-auth login name. Empty disables login (no token can be issued). |
+| `BOOPBOX_AUTH_PASSWORD` | empty | **(secret)** User-auth password. Empty disables login. |
+| `BOOPBOX_JWT_SECRET` | empty | **(secret)** HS256 signing key for user JWTs. Must be **≥32 bytes when set** (startup fails otherwise). Empty disables login. |
+| `BOOPBOX_JWT_TTL_SECONDS` | `3600` | Lifetime of an issued user JWT. |
 | `BOOPBOX_CONFIG_PATH` | `config.yaml` | Path to `config.yaml`. |
 | `BOOPBOX_DB_PATH` | `devices.db` | SQLite file path. |
 | `BOOPBOX_FIRMWARE_DIR` | `firmware-bins` | Non-secret, deploy-specific. Directory of built OTA `.bin` files the `/firmware` host serves. See the OTA firmware directory section for layout. Distinct from the repo's `firmware/` ESPHome-source dir. |
@@ -364,6 +408,8 @@ committed — keep them in `.env`, not `config.yaml`.
 | `BOOPBOX_SOURCE_<ID>_API_KEY` | empty | **(secret)** API key per source. `<ID>` is the source id uppercased with non-alphanumeric runs replaced by `_` (e.g. `jellyfin-main` → `BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY`). |
 | `BOOPBOX_SEED_DEVICE_ID` | `boop-test` | MVP seed device, upserted at startup. |
 | `BOOPBOX_SEED_DEVICE_MQTT_PASSWORD` | empty | **(secret)** Provisioned at the broker; never stored in the database. |
+| `BOOPBOX_SEED_DEVICE_OTA_SECRET` | empty | **(secret)** MVP stand-in for provisioning. Hashed onto the seed device row at startup; presented as the HTTP Basic password on the firmware bin fetch. |
+| `BOOPBOX_SEED_DEVICE_API_TOKEN` | empty | **(secret)** MVP stand-in for provisioning. Hashed onto the seed device row at startup; presented as an `Authorization: Bearer` token on device API routes. |
 
 The `BOOPBOX_MQTT_*` variables are live runtime config: the server opens an MQTT
 connection to the broker at startup and subscribes to `boopbox/+/boop`, so the

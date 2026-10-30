@@ -13,6 +13,10 @@ DEFAULT_CONFIG_PATH = "config.yaml"
 DEFAULT_DB_PATH = "devices.db"
 DEFAULT_FIRMWARE_DIR = "firmware-bins"
 
+# RFC 7518 §3.2: an HS256 key must be at least as long as the hash output
+# (32 bytes). A shorter key weakens the signature, so reject it at startup.
+MIN_JWT_SECRET_BYTES = 32
+
 
 def source_api_key_env(source_id: str) -> str:
     """Env var name holding a source's API key.
@@ -53,6 +57,13 @@ class Settings(BaseSettings):
     # Secret: required.
     stream_secret: str
 
+    # User auth (UI/API). A single configured credential logs in and receives a
+    # short-lived JWT signed with jwt_secret; the API verifies it on user routes.
+    auth_username: str = ""
+    auth_password: str = ""
+    jwt_secret: str = ""
+    jwt_ttl_seconds: int = 3600
+
     # Paths.
     config_path: str = DEFAULT_CONFIG_PATH
     db_path: str = DEFAULT_DB_PATH
@@ -76,12 +87,31 @@ class Settings(BaseSettings):
     # stored in the devices table; the env var exists for broker provisioning.
     seed_device_id: str = "boop-test"
     seed_device_mqtt_password: str = ""
+    # Seed device auth secrets (MVP stand-in for provisioning). Hashed and stored
+    # on the seed row at startup; the plaintext is what a box would be flashed
+    # with. Empty means the seed device gets no usable auth secret.
+    seed_device_ota_secret: str = ""
+    seed_device_api_token: str = ""
 
     config: FileConfig = Field(default_factory=FileConfig)
 
     @model_validator(mode="after")
     def _load_config_file(self) -> "Settings":
         self.config = _load_file_config(self.config_path)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_jwt_secret(self) -> "Settings":
+        # An empty secret is the "user auth disabled" state (login rejects all).
+        # A set-but-short secret is a misconfiguration: fail loudly rather than
+        # sign with a weak HS256 key.
+        if self.jwt_secret and len(self.jwt_secret.encode("utf-8")) < (
+            MIN_JWT_SECRET_BYTES
+        ):
+            raise ValueError(
+                f"BOOPBOX_JWT_SECRET must be at least {MIN_JWT_SECRET_BYTES} "
+                "bytes when set"
+            )
         return self
 
     def api_key_for(self, source_id: str) -> str:

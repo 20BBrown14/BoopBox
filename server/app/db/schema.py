@@ -23,6 +23,8 @@ SCHEMA_STATEMENTS = (
         friendly_name      TEXT,
         mqtt_account       TEXT,
         revoked            INTEGER NOT NULL DEFAULT 0,
+        ota_secret_hash    TEXT,
+        device_token_hash  TEXT,
         last_seen_at       TEXT,
         firmware_version   TEXT,
         created_at         TEXT NOT NULL,

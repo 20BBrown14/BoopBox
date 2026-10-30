@@ -158,6 +158,10 @@ class _RecordingPolicy:
         self.queries.append(device_id)
 
 
+AUTH_USER = "admin"
+AUTH_PASS = "pw"
+
+
 @pytest.fixture
 def client(tmp_path, firmware_dir, monkeypatch):
     config_path = tmp_path / "config.yaml"
@@ -166,16 +170,27 @@ def client(tmp_path, firmware_dir, monkeypatch):
     monkeypatch.setenv("BOOPBOX_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("BOOPBOX_DB_PATH", str(tmp_path / "devices.db"))
     monkeypatch.setenv("BOOPBOX_FIRMWARE_DIR", str(firmware_dir))
+    monkeypatch.setenv("BOOPBOX_AUTH_USERNAME", AUTH_USER)
+    monkeypatch.setenv("BOOPBOX_AUTH_PASSWORD", AUTH_PASS)
+    monkeypatch.setenv("BOOPBOX_JWT_SECRET", "jwt-signing-secret-at-least-32-bytes")
     get_settings.cache_clear()
     with TestClient(create_app()) as c:
         yield c
     get_settings.cache_clear()
 
 
+def _user_headers(client) -> dict[str, str]:
+    r = client.post(
+        "/auth/token", json={"username": AUTH_USER, "password": AUTH_PASS}
+    )
+    assert r.status_code == 200
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
 def test_update_no_body_broadcasts_query(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
-    r = client.post("/ota/update")
+    r = client.post("/ota/update", headers=_user_headers(client))
     assert r.status_code == 200
     assert r.json()["device_id"] == "all"
     assert recorder.queries == [None]
@@ -186,7 +201,9 @@ def test_update_with_device_id_queries_that_device(client):
     client.app.state.ota_policy = recorder
     # The seed device id is created at startup.
     seed_id = get_settings().seed_device_id
-    r = client.post("/ota/update", json={"device_id": seed_id})
+    r = client.post(
+        "/ota/update", json={"device_id": seed_id}, headers=_user_headers(client)
+    )
     assert r.status_code == 200
     assert r.json()["device_id"] == seed_id
     assert recorder.queries == [seed_id]
@@ -195,6 +212,18 @@ def test_update_with_device_id_queries_that_device(client):
 def test_update_unknown_device_is_404(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
-    r = client.post("/ota/update", json={"device_id": "no-such-device"})
+    r = client.post(
+        "/ota/update",
+        json={"device_id": "no-such-device"},
+        headers=_user_headers(client),
+    )
     assert r.status_code == 404
+    assert recorder.queries == []
+
+
+def test_update_without_auth_is_401(client):
+    recorder = _RecordingPolicy()
+    client.app.state.ota_policy = recorder
+    r = client.post("/ota/update")
+    assert r.status_code == 401
     assert recorder.queries == []
