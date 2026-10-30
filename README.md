@@ -49,10 +49,10 @@ pip install -e '.[dev]'
 
 ```bash
 cd server
-uvicorn app.main:create_app --factory
+uvicorn app.main:create_app --factory --port 9685
 ```
 
-Uvicorn binds to its default (`127.0.0.1:9685`) for local bare runs. Check the
+This binds `127.0.0.1:9685`, matching the port the container serves on. Check the
 health endpoint:
 
 ```bash
@@ -311,7 +311,9 @@ sources:
 - `base_url` points at the Jellyfin server reachable from the BoopBox server.
 - `user_id` is optional; set it if item metadata lookups require a user context.
 - A `mapping` entry of `kind: collection` may point at a Jellyfin collection,
-  playlist, or album id; the server lists its members and plays one.
+  playlist, or album id. The server flattens it to playable audio tracks —
+  expanding any album or sub-collection it contains to that container's tracks —
+  then plays one at random.
 
 Jellyfin credentials and URLs stay server-side: they never appear in a `play`
 command or the signed `/stream` URL, and upstream errors are returned to the box
