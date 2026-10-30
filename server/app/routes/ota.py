@@ -5,12 +5,14 @@ path decides whether an update actually happens. An absent `device_id`
 broadcasts the query to the fleet; a present one targets that device (404 if the
 device id is unknown).
 
-Unauthenticated for the config-file MVP, like the rest of the admin surface.
-Flagged for the auth story; must stay off any box-facing path.
+Behind user auth (JWT bearer): a human/UI action, never a box-facing path. A
+device credential does not satisfy `require_user`.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+
+from app.auth import require_user
 
 router = APIRouter()
 
@@ -20,7 +22,7 @@ class OtaUpdateRequest(BaseModel):
     device_id: str | None = None
 
 
-@router.post("/ota/update")
+@router.post("/ota/update", dependencies=[Depends(require_user)])
 async def ota_update(
     request: Request, body: OtaUpdateRequest | None = None
 ) -> dict[str, str]:

@@ -140,6 +140,25 @@ def test_wrong_type_rejected(tmp_path, monkeypatch):
         Settings(_env_file=None, config_path=config_path)
 
 
+def test_short_jwt_secret_rejected(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
+    monkeypatch.setenv("BOOPBOX_JWT_SECRET", "too-short")
+    config_path = _write(tmp_path, MINIMAL_CONFIG)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, config_path=config_path)
+
+
+def test_empty_jwt_secret_allowed(tmp_path, monkeypatch):
+    # Empty secret = user auth disabled; not a misconfiguration.
+    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
+    monkeypatch.delenv("BOOPBOX_JWT_SECRET", raising=False)
+    config_path = _write(tmp_path, MINIMAL_CONFIG)
+
+    settings = Settings(_env_file=None, config_path=config_path)
+    assert settings.jwt_secret == ""
+
+
 def test_source_api_key_env_naming():
     assert source_api_key_env("jellyfin-main") == "BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY"
     assert source_api_key_env("plex.home") == "BOOPBOX_SOURCE_PLEX_HOME_API_KEY"

@@ -145,32 +145,56 @@ class JellyfinSource:
             _raise_for_status(response, item)
         return JellyfinStream(response, ctx)
 
-    async def members(self, collection: str) -> list[str]:
-        self._require_key()
-        params: dict[str, str] = {
-            "parentId": collection,
-            "recursive": "true",
-        }
-        if self._user_id:
-            params["userId"] = self._user_id
+    async def _list_items(self, item: str, **params: str) -> list[dict]:
+        """GET /Items with `params`, returning the raw `Items` list.
+
+        No `userId` is sent: the API key scopes the request, and user-scoping a
+        collection query can silently drop BoxSet members server-side. Upstream
+        failures map to the error vocabulary with log-only detail.
+        """
         try:
             resp = await self._client.get("/Items", params=params)
         except httpx.HTTPError as err:
             raise _connection_error(err) from err
-        _raise_for_status(resp, collection)
+        _raise_for_status(resp, item)
         try:
             body = resp.json()
         except ValueError as err:
             raise SourceError(
                 ErrorCode.source_unavailable,
-                log_detail=f"jellyfin items not JSON for {collection!r}",
+                log_detail=f"jellyfin items not JSON for {item!r}",
             ) from err
-        items = body.get("Items") or []
-        member_ids = [i["Id"] for i in items if i.get("Id")]
+        return body.get("Items") or []
+
+    async def members(self, collection: str) -> list[str]:
+        """Expand a collection to its playable `Audio` item ids.
+
+        Two-level walk: a Jellyfin collection (`BoxSet`) lists its children
+        (albums, loose tracks), but a single recursive+Audio query does not
+        descend through an album to its tracks. So each non-`Audio` child
+        container is expanded one level to its `Audio` items; loose `Audio`
+        children pass through directly.
+        """
+        self._require_key()
+        children = await self._list_items(collection, parentId=collection, recursive="true")
+
+        member_ids: list[str] = []
+        for child in children:
+            cid = child.get("Id")
+            if not cid:
+                continue
+            if child.get("Type") == "Audio":
+                member_ids.append(cid)
+                continue
+            tracks = await self._list_items(
+                cid, parentId=cid, includeItemTypes="Audio"
+            )
+            member_ids.extend(t["Id"] for t in tracks if t.get("Id"))
+
         if not member_ids:
             raise SourceError(
                 ErrorCode.item_unavailable,
-                log_detail=f"jellyfin collection {collection!r} has no members",
+                log_detail=f"jellyfin collection {collection!r} has no audio members",
             )
         return member_ids
 
