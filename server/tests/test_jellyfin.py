@@ -130,24 +130,73 @@ async def test_duration_passes_user_id_when_set():
 # --- members ---
 
 
-async def test_members_returns_item_ids():
+async def test_members_expands_album_children_to_audio_tracks():
+    # A BoxSet whose only child is a MusicAlbum: the album must be expanded one
+    # level to its Audio tracks, which is what gets streamed.
+    seen_user_ids = []
+
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/Items"
-        assert request.url.params.get("parentId") == "col-1"
-        assert request.url.params.get("recursive") == "true"
+        seen_user_ids.append(request.url.params.get("userId"))
+        parent = request.url.params.get("parentId")
+        if parent == "col-1":
+            assert request.url.params.get("recursive") == "true"
+            return httpx.Response(
+                200, json={"Items": [{"Id": "album-1", "Type": "MusicAlbum"}]}
+            )
+        if parent == "album-1":
+            assert request.url.params.get("includeItemTypes") == "Audio"
+            return httpx.Response(
+                200,
+                json={
+                    "Items": [
+                        {"Id": "t1", "Type": "Audio"},
+                        {"Id": "t2", "Type": "Audio"},
+                    ]
+                },
+            )
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    src = _source(handler, user_id="user-7")
+    assert await src.members("col-1") == ["t1", "t2"]
+    # userId must never be sent on the collection walk (BoxSet-member drop bug),
+    # even when the source has a user_id configured.
+    assert seen_user_ids == [None, None]
+
+
+async def test_members_passes_through_loose_audio():
+    # A collection holding audio items directly: they pass through, no second
+    # expansion call for an Audio child.
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params.get("parentId") == "col-2"
         return httpx.Response(
             200,
-            json={"Items": [{"Id": "a"}, {"Id": "b"}, {"Id": "c"}]},
+            json={"Items": [{"Id": "x", "Type": "Audio"}, {"Id": "y", "Type": "Audio"}]},
         )
 
     src = _source(handler)
-    assert await src.members("col-1") == ["a", "b", "c"]
+    assert await src.members("col-2") == ["x", "y"]
 
 
 async def test_members_empty_collection_is_item_unavailable():
     src = _source(lambda r: httpx.Response(200, json={"Items": []}))
     with pytest.raises(SourceError) as exc:
         await src.members("col-empty")
+    assert exc.value.code is ErrorCode.item_unavailable
+
+
+async def test_members_album_with_no_audio_is_item_unavailable():
+    # BoxSet -> album, but the album yields no Audio -> no playable members.
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.params.get("parentId") == "col-3":
+            return httpx.Response(
+                200, json={"Items": [{"Id": "album-9", "Type": "MusicAlbum"}]}
+            )
+        return httpx.Response(200, json={"Items": []})
+
+    src = _source(handler)
+    with pytest.raises(SourceError) as exc:
+        await src.members("col-3")
     assert exc.value.code is ErrorCode.item_unavailable
 
 

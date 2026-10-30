@@ -35,6 +35,9 @@ def firmware_dir(tmp_path):
     return d
 
 
+OTA_SECRET = "seed-ota-secret"
+
+
 @pytest.fixture
 def client(tmp_path, firmware_dir, monkeypatch):
     config_path = tmp_path / "config.yaml"
@@ -43,10 +46,16 @@ def client(tmp_path, firmware_dir, monkeypatch):
     monkeypatch.setenv("BOOPBOX_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("BOOPBOX_DB_PATH", str(tmp_path / "devices.db"))
     monkeypatch.setenv("BOOPBOX_FIRMWARE_DIR", str(firmware_dir))
+    monkeypatch.setenv("BOOPBOX_SEED_DEVICE_OTA_SECRET", OTA_SECRET)
     get_settings.cache_clear()
     with TestClient(create_app()) as c:
         yield c
     get_settings.cache_clear()
+
+
+def _ota_auth():
+    """HTTP Basic auth for the seed device's OTA bin fetch."""
+    return (get_settings().seed_device_id, OTA_SECRET)
 
 
 # --- Generator / index unit tests (no HTTP) ---
@@ -178,6 +187,7 @@ def test_firmware_served_with_range(client, firmware_dir):
     r = client.get(
         f"/firmware/esp32s3/boopbox-{VERSION}.bin",
         headers={"Range": "bytes=10-19"},
+        auth=_ota_auth(),
     )
     assert r.status_code == 206
     assert r.content == data[10:20]
@@ -187,9 +197,32 @@ def test_firmware_served_with_range(client, firmware_dir):
 def test_firmware_full_fetch(client, firmware_dir):
     data = b"full-bin-bytes"
     _write_bin(firmware_dir, "esp32s3", VERSION, data)
-    r = client.get(f"/firmware/esp32s3/boopbox-{VERSION}.bin")
+    r = client.get(f"/firmware/esp32s3/boopbox-{VERSION}.bin", auth=_ota_auth())
     assert r.status_code == 200
     assert r.content == data
+
+
+def test_firmware_requires_auth(client, firmware_dir):
+    _write_bin(firmware_dir, "esp32s3", VERSION, b"data")
+    r = client.get(f"/firmware/esp32s3/boopbox-{VERSION}.bin")
+    assert r.status_code == 401
+
+
+def test_firmware_wrong_secret_forbidden(client, firmware_dir):
+    _write_bin(firmware_dir, "esp32s3", VERSION, b"data")
+    r = client.get(
+        f"/firmware/esp32s3/boopbox-{VERSION}.bin",
+        auth=(get_settings().seed_device_id, "wrong-secret"),
+    )
+    assert r.status_code == 403
+
+
+def test_manifest_is_public(client, firmware_dir):
+    # The manifest stays reachable without any credential.
+    _write_bin(firmware_dir, "esp32s3", VERSION, b"data")
+    client.app.state.firmware.rebuild()
+    r = client.get("/firmware/manifest.json")
+    assert r.status_code == 200
 
 
 def test_manifest_wins_over_static_file(client, firmware_dir):

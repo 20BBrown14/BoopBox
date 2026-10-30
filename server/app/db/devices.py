@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import aiosqlite
 
+from app.security import hash_secret
 from app.types.device import Device
 
 
@@ -15,8 +16,9 @@ class DeviceRepository:
 
     async def get(self, device_id: str) -> Device | None:
         async with self._conn.execute(
-            "SELECT id, friendly_name, mqtt_account, revoked, last_seen_at, "
-            "firmware_version, created_at, updated_at FROM devices WHERE id = ?",
+            "SELECT id, friendly_name, mqtt_account, revoked, ota_secret_hash, "
+            "device_token_hash, last_seen_at, firmware_version, created_at, "
+            "updated_at FROM devices WHERE id = ?",
             (device_id,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -27,6 +29,8 @@ class DeviceRepository:
             friendly_name=row["friendly_name"],
             mqtt_account=row["mqtt_account"],
             revoked=bool(row["revoked"]),
+            ota_secret_hash=row["ota_secret_hash"],
+            device_token_hash=row["device_token_hash"],
             last_seen_at=row["last_seen_at"],
             firmware_version=row["firmware_version"],
             created_at=row["created_at"],
@@ -41,13 +45,16 @@ class DeviceRepository:
             """
             INSERT INTO devices (
                 id, friendly_name, mqtt_account, revoked,
+                ota_secret_hash, device_token_hash,
                 last_seen_at, firmware_version, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 friendly_name = excluded.friendly_name,
                 mqtt_account = excluded.mqtt_account,
                 revoked = excluded.revoked,
+                ota_secret_hash = excluded.ota_secret_hash,
+                device_token_hash = excluded.device_token_hash,
                 last_seen_at = excluded.last_seen_at,
                 firmware_version = excluded.firmware_version,
                 updated_at = excluded.updated_at
@@ -57,6 +64,8 @@ class DeviceRepository:
                 device.friendly_name,
                 device.mqtt_account,
                 int(device.revoked),
+                device.ota_secret_hash,
+                device.device_token_hash,
                 device.last_seen_at,
                 device.firmware_version,
                 now,
@@ -84,9 +93,29 @@ class DeviceRepository:
         await self._conn.commit()
 
 
-async def seed_device(repo: DeviceRepository, device_id: str) -> None:
+async def seed_device(
+    repo: DeviceRepository,
+    device_id: str,
+    *,
+    ota_secret: str = "",
+    device_token: str = "",
+) -> None:
     """Upsert the seed device if absent. Idempotent: an existing row keeps its
-    created_at. The MQTT password is a broker concern and is not stored here."""
+    created_at and its already-stored secrets. The MQTT password is a broker
+    concern and is not stored here.
+
+    `ota_secret`/`device_token` are the MVP stand-in for provisioning: when the
+    row is first created they are hashed and stored. Empty values store no hash.
+    """
     existing = await repo.get(device_id)
     if existing is None:
-        await repo.upsert(Device(id=device_id, friendly_name="Seed test device"))
+        await repo.upsert(
+            Device(
+                id=device_id,
+                friendly_name="Seed test device",
+                ota_secret_hash=hash_secret(ota_secret) if ota_secret else None,
+                device_token_hash=(
+                    hash_secret(device_token) if device_token else None
+                ),
+            )
+        )
