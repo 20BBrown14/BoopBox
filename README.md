@@ -214,7 +214,7 @@ sudo nft insert rule inet filter input ip saddr <box-ip> tcp dport 8000 accept
    list, or in the serial log after it joins Wi-Fi.
 2. In **Audio Test**, set **Test Audio URL** to
    `http://<your-ip>:8000/beeps_sweep.mp3`.
-3. Set **Volume** (0–100; 100 is the firmware's safety cap, not full power).
+3. Set **Volume** (0–100; 100 is full scale).
 4. Press **Play Test Audio**.
 
 You should hear three short beeps, a pause, then a sweep from low to high. If you hear
