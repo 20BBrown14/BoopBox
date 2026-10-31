@@ -20,13 +20,13 @@ Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in 
 | DIN | D11 / GPIO11 | |
 | VIN | USB (5V) | 1000uF across VIN/GND right at the amp |
 | GND | GND | |
-| GAIN | — | floating = 9 dB |
+| GAIN | GND | GND = 12 dB (floating = 9 dB was too quiet) |
 | SD | — | floating = (L+R)/2 mono; GPIO12 reserved for mute/sleep later |
 
 - Power: 5V gives ~2.5W clean into 4Ω (speaker is rated 3W); 3.3V is only ~1.3W. USB pin is dead on battery, so the battery build moves VIN to BAT (3.7–4.2V is in range).
 - Speaker outputs are bridge-tied: never connect SPK+ or SPK- to GND (including a scope ground clip).
 - Don't drive SD high from a GPIO: a solid 3.3V selects LEFT only. Mute = pull low, play = release (open-drain).
-- Volume is capped in firmware (`volume_max`) on top of the hardware gain.
+- `volume_max` is 1.0 (full scale); the 5V supply, not firmware, limits output to ~3W. Lower it to add a cap.
 
 ### Bring-up status (2026-10-17)
 - First sound confirmed: Feather + MAX98357A + 4Ω speaker on USB power, streaming over Wi-Fi from a local HTTP server. The start of playback isn't clipped (a 3-beep test file plays all three beeps).
