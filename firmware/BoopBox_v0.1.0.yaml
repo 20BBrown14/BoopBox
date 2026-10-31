@@ -207,7 +207,8 @@ i2s_audio:
     i2s_bclk_pin: ${i2s_bclk_pin}
     i2s_lrclk_pin: ${i2s_lrclk_pin}
 
-# MAX98357A: GAIN floating (9 dB), SD floating (L+R mix), so mono is fine.
+# MAX98357A: GAIN to GND (12 dB), SD floating (L+R mix). Mono puts the same
+# sample in both I2S slots, so the amp's L+R mix plays it at full level.
 speaker:
   - platform: i2s_audio
     id: boop_speaker
@@ -225,8 +226,8 @@ media_player:
     announcement_pipeline:
       speaker: boop_speaker
       format: NONE
-    # Ceiling protects the 3 W speaker and small ears; tune by ear.
-    volume_max: 0.7
+    # Full scale for now; 5V supply limits output to ~3 W. Lower to cap for small ears.
+    volume_max: 1.0
     volume_initial: 0.4
 
 pn532_i2c:
