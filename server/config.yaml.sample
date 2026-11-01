@@ -1,0 +1,21 @@
+# Structured, human-edited configuration. No secrets.
+# Secrets and deploy-specific values live in .env (see .env.example).
+
+sources:
+  - id: jellyfin-main
+    type: jellyfin
+    base_url: https://jellyfin.example.domain
+    user_id: ""                       # optional
+
+mappings:                             # slug -> list of entries; server picks one to play
+  "boop/example":
+    - source: jellyfin-main           # references a sources[].id
+      item: "badb9717a8d1b377c858bda2da285a34"
+      kind: collection                      # item | collection; default item
+
+streaming:
+  mode: proxy                         # proxy | redirect (redirect not yet functional)
+  pause_budget_seconds: 1800
+
+ota:
+  manifest_version: "0.1.0"
