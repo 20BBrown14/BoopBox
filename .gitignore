@@ -37,3 +37,5 @@ server/mosquitto/password_file
 
 # Bundled-broker runtime data
 server/mosquitto-data/
+
+server/config.yaml

@@ -1,10 +1,20 @@
-# BoopBox v0.1.0 — WiFi onboarding + NFC read/write + audio bring-up.
+# BoopBox v0.1.0 — WiFi onboarding + NFC read/write + audio bring-up + MQTT.
 # Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode,
 # MAX98357A I2S amp. Wiring: hardware/boopbox-proto (KiCad).
 
 substitutions:
   name: boopbox
   friendly_name: BoopBox
+  # device_id is the box's stable identity: its MQTT username (broker ACLs key
+  # on it) and the <id> in every boopbox/<id>/... topic. Must match a broker
+  # account. Override per box at flash/compile time.
+  device_id: boop-test
+  mqtt_broker: 192.168.86.76
+  mqtt_port: "1884"
+  mqtt_username: boop-test
+  mqtt_password: booptestpassword
+  firmware_version: 0.1.0
+  chip_family: esp32s3
   i2c_sda_pin: GPIO3
   i2c_scl_pin: GPIO4
   i2s_bclk_pin: GPIO9
@@ -70,6 +80,45 @@ improv_serial:
 time:
   - platform: sntp
     id: sntp_time
+
+# The box ↔ server contract runs over MQTT (server/docs/mqtt.md). discovery is
+# off and topic_prefix null because the server owns the boopbox/<id>/... topic
+# namespace rather than ESPHome's default device topics. idf_send_async keeps
+# publishes off the main loop on the esp-idf framework.
+mqtt:
+  id: mqtt_client
+  broker: ${mqtt_broker}
+  port: ${mqtt_port}
+  username: ${mqtt_username}
+  password: ${mqtt_password}
+  client_id: ${device_id}
+  discovery: false
+  topic_prefix: null
+  idf_send_async: true
+  on_connect:
+    # Report firmware/chip on every (re)connect: the server's OTA policy keys
+    # off this unsolicited version report and the reply to get_version.
+    then:
+      - script.execute: publish_version
+  on_json_message:
+    # play — server → boopbox/<id>/play. The answer to a boop: stream `url`
+    # through the media pipeline so the transport buttons can pause/resume it.
+    # title/album/artist/duration are optional metadata the box may ignore.
+    - topic: boopbox/${device_id}/play
+      then:
+        - lambda: |-
+            if (!x.containsKey("url")) {
+              ESP_LOGW("boopbox", "play without url; ignoring");
+              return;
+            }
+            std::string url = x["url"].as<std::string>();
+            const char *slug = x.containsKey("boop") && x["boop"].containsKey("slug")
+                                 ? x["boop"]["slug"].as<const char *>() : "?";
+            ESP_LOGI("boopbox", "play slug='%s' url=%s", slug, url.c_str());
+            id(boop_player)
+                ->make_call()
+                .set_media_url(url)
+                .perform();
 
 api:
 ota:
@@ -184,7 +233,43 @@ button:
     on_press:
       - media_player.play_media:
           id: boop_player
+          # Media pipeline so the Play/Pause/Stop buttons act on it.
           media_url: !lambda 'return id(test_audio_url).state;'
+
+  # Software transport controls (no physical buttons yet). These act on whatever
+  # the player is doing — a server play or the test-audio button.
+  - platform: template
+    name: "Play"
+    id: play_button
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 30
+    icon: mdi:play
+    on_press:
+      - media_player.play:
+          id: boop_player
+
+  - platform: template
+    name: "Pause"
+    id: pause_button
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 31
+    icon: mdi:pause
+    on_press:
+      - media_player.pause:
+          id: boop_player
+
+  - platform: template
+    name: "Stop"
+    id: stop_button
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 32
+    icon: mdi:stop
+    on_press:
+      - media_player.stop:
+          id: boop_player
 
   - platform: restart
     name: "Restart"
@@ -202,12 +287,60 @@ button:
       sorting_group_id: grp_device
       sorting_weight: 20
 
+script:
+  # version — box → boopbox/<id>/version. Firmware/chip telemetry the server's
+  # OTA policy consumes; produces no reply.
+  - id: publish_version
+    then:
+      - lambda: |-
+          id(mqtt_client).publish_json(
+            "boopbox/${device_id}/version",
+            [=](JsonObject root) {
+              root["v"] = 1;
+              root["firmware"] = "${firmware_version}";
+              root["chip"] = "${chip_family}";
+            });
+
+  # boop — box → boopbox/<id>/boop. One per tap; the server answers with a
+  # single play or error. `slug` is the tag's NDEF payload; `uid` and `ts` are
+  # informational.
+  - id: publish_boop
+    parameters:
+      slug: string
+      uid: string
+    then:
+      - lambda: |-
+          if (!id(mqtt_client).is_connected()) {
+            ESP_LOGW("boopbox", "MQTT not connected; dropping boop for '%s'",
+                     slug.c_str());
+            return;
+          }
+          // Short random correlation id, echoed back in the play/error reply.
+          char boop_id[9];
+          snprintf(boop_id, sizeof(boop_id), "%08x", (unsigned) random_uint32());
+          std::string id_str(boop_id);
+          uint32_t ts = id(sntp_time).now().is_valid()
+                          ? (uint32_t) id(sntp_time).now().timestamp : 0;
+          id(mqtt_client).publish_json(
+            "boopbox/${device_id}/boop",
+            [=](JsonObject root) {
+              root["v"] = 1;
+              root["id"] = id_str;
+              root["slug"] = slug;
+              root["uid"] = uid;
+              root["ts"] = ts;
+            });
+          ESP_LOGI("boopbox", "Published boop id=%s slug='%s'",
+                   id_str.c_str(), slug.c_str());
+
 i2s_audio:
   - id: i2s_out
     i2s_bclk_pin: ${i2s_bclk_pin}
     i2s_lrclk_pin: ${i2s_lrclk_pin}
 
-# MAX98357A: GAIN floating (9 dB), SD floating (L+R mix), so mono is fine.
+# MAX98357A: GAIN floating (9 dB). SD pulled to VIN (1M) = Left-channel-only.
+# One physical driver, so mono: the same samples go to both I2S slots, and the
+# amp takes the left one.
 speaker:
   - platform: i2s_audio
     id: boop_speaker
@@ -216,17 +349,30 @@ speaker:
     i2s_dout_pin: ${i2s_dout_pin}
     channel: mono
 
+  # Two pipelines (media + announcement) must each output to a unique speaker,
+  # so a mixer fans them into the single physical driver. Media carries booped
+  # tracks (pausable transport); announcements are fire-and-forget overlays.
+  - platform: mixer
+    id: boop_mixer
+    output_speaker: boop_speaker
+    source_speakers:
+      - id: media_spk_in
+      - id: announcement_spk_in
+
 media_player:
   - platform: speaker
     name: "BoopBox Player"
     id: boop_player
     # NONE builds every decoder (MP3/FLAC/WAV/Opus) so arbitrary stream URLs
     # play, not just what Home Assistant would transcode to.
+    media_pipeline:
+      speaker: media_spk_in
+      format: NONE
     announcement_pipeline:
-      speaker: boop_speaker
+      speaker: announcement_spk_in
       format: NONE
     # Ceiling protects the 3 W speaker and small ears; tune by ear.
-    volume_max: 0.7
+    volume_max: 1.0
     volume_initial: 0.4
 
 pn532_i2c:
@@ -242,18 +388,25 @@ pn532_i2c:
           ESP_LOGI("boopbox", "=== NFC TAG READ ===");
           ESP_LOGI("boopbox", "UID: %s", x.c_str());
 
+          // slug is the first NDEF text record's payload, which is what Write
+          // Tag stages (e.g. "boop/zelda"). A UID-only tag has no slug and so
+          // cannot be resolved server-side; log and skip the boop.
+          std::string slug;
           if (tag.has_ndef_message()) {
             auto message = tag.get_ndef_message();
-            auto records = message->get_records();
+            // ESPHome 2026.10: get_records() returns a const StaticVector of
+            // unique_ptr; bind by const ref and iterate by const ref.
+            const auto &records = message->get_records();
             ESP_LOGI("boopbox", "NDEF records: %d", (int) records.size());
 
             std::string combined;
             int i = 0;
-            for (auto &record : records) {
+            for (const auto &record : records) {
               std::string type = record->get_type();
               std::string payload = record->get_payload();
               ESP_LOGI("boopbox", "  [%d] type='%s' payload='%s'",
                        i, type.c_str(), payload.c_str());
+              if (slug.empty()) slug = payload;
               if (!combined.empty()) combined += " | ";
               combined += payload;
               i++;
@@ -262,6 +415,12 @@ pn532_i2c:
           } else {
             ESP_LOGI("boopbox", "No NDEF message on this tag (UID-only read).");
             id(last_nfc_payload).publish_state("<no NDEF — UID only>");
+          }
+
+          if (!slug.empty()) {
+            id(publish_boop)->execute(slug, x);
+          } else {
+            ESP_LOGW("boopbox", "No slug on tag; not booping.");
           }
           ESP_LOGI("boopbox", "====================");
   on_tag_removed:
