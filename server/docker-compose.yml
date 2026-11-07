@@ -8,8 +8,10 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./app-data:/data
+      - ./firmware-bins:/firmware-bins:ro
     environment:
       BOOPBOX_DB_PATH: /data/devices.db
+      BOOPBOX_FIRMWARE_DIR: /firmware-bins
     # Ordering nicety only: the app's reconnect loop already tolerates a
     # not-yet-up broker, so this is not required for correctness. It is ignored
     # when the bundled-broker profile is not selected (the service won't exist,

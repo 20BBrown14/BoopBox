@@ -4,6 +4,7 @@ import threading
 import pytest
 
 from app.db import DeviceRepository, connect, init_schema, seed_device
+from app.security import verify_secret
 from app.types.device import Device
 
 
@@ -76,6 +77,31 @@ async def test_seed_idempotent(conn):
         count = (await cur.fetchone())[0]
     assert count == 1
     assert second.created_at == first.created_at
+
+
+async def test_seed_applies_secret_to_existing_row(conn):
+    # Row created before the secret was configured must pick it up on reseed.
+    repo = DeviceRepository(conn)
+    await seed_device(repo, "boop-test")
+    assert (await repo.get("boop-test")).ota_secret_hash is None
+
+    await seed_device(repo, "boop-test", ota_secret="s1", device_token="t1")
+    seeded = await repo.get("boop-test")
+    assert verify_secret("s1", seeded.ota_secret_hash)
+    assert verify_secret("t1", seeded.device_token_hash)
+
+    await seed_device(repo, "boop-test", ota_secret="s2")
+    rotated = await repo.get("boop-test")
+    assert verify_secret("s2", rotated.ota_secret_hash)
+    assert verify_secret("t1", rotated.device_token_hash)
+    assert rotated.created_at == seeded.created_at
+
+
+async def test_seed_empty_secret_keeps_stored_hash(conn):
+    repo = DeviceRepository(conn)
+    await seed_device(repo, "boop-test", ota_secret="s1")
+    await seed_device(repo, "boop-test")
+    assert verify_secret("s1", (await repo.get("boop-test")).ota_secret_hash)
 
 
 async def test_db_call_runs_off_loop(conn):

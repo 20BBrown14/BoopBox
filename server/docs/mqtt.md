@@ -148,6 +148,11 @@ The bin fetch at `url` is **authenticated** (per-device HTTP Basic); see the
 README OTA section. A `flash` is only ever sent to a single device, with the bin
 matching that box's own reported chip.
 
+Box side: `url` is a path, so the box prefixes its configured server base URL.
+The box ignores a `flash` whose `url` does not start with `/firmware/` or whose
+`md5` is not 32 characters. A box acts on `get_version` from either topic but on
+`flash` only from its own `boopbox/<id>/cmd`.
+
 ### `version` — box → `boopbox/<id>/version`
 
 The box's firmware/chip report. Sent in reply to `get_version`, and may also be

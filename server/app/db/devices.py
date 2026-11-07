@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import aiosqlite
@@ -100,22 +101,33 @@ async def seed_device(
     ota_secret: str = "",
     device_token: str = "",
 ) -> None:
-    """Upsert the seed device if absent. Idempotent: an existing row keeps its
-    created_at and its already-stored secrets. The MQTT password is a broker
-    concern and is not stored here.
+    """Upsert the seed device. Idempotent: an existing row keeps its created_at.
+    The MQTT password is a broker concern and is not stored here.
 
-    `ota_secret`/`device_token` are the MVP stand-in for provisioning: when the
-    row is first created they are hashed and stored. Empty values store no hash.
+    `ota_secret`/`device_token` are the MVP stand-in for provisioning. A
+    non-empty value is the source of truth and replaces a stale stored hash, so
+    setting or rotating it in .env takes effect on restart. An empty value never
+    clears an existing hash.
     """
+    ota_hash = hash_secret(ota_secret) if ota_secret else None
+    token_hash = hash_secret(device_token) if device_token else None
+
     existing = await repo.get(device_id)
     if existing is None:
         await repo.upsert(
             Device(
                 id=device_id,
                 friendly_name="Seed test device",
-                ota_secret_hash=hash_secret(ota_secret) if ota_secret else None,
-                device_token_hash=(
-                    hash_secret(device_token) if device_token else None
-                ),
+                ota_secret_hash=ota_hash,
+                device_token_hash=token_hash,
             )
         )
+        return
+
+    updates = {}
+    if ota_hash is not None and existing.ota_secret_hash != ota_hash:
+        updates["ota_secret_hash"] = ota_hash
+    if token_hash is not None and existing.device_token_hash != token_hash:
+        updates["device_token_hash"] = token_hash
+    if updates:
+        await repo.upsert(replace(existing, **updates))

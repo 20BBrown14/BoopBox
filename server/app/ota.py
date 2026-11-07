@@ -42,6 +42,13 @@ class OtaPolicy:
         own reported chip; an unknown chip (or no bin in the index) is logged and
         skipped, never guessed — a wrong-chip flash bricks the box.
         """
+        logger.info(
+            "ota: %s reports firmware %s chip %s (target %s)",
+            device_id,
+            reply.firmware,
+            reply.chip,
+            self._target_version,
+        )
         if reply.firmware == self._target_version:
             return  # current; nothing to do
 

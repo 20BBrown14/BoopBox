@@ -1,3 +1,5 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -54,6 +56,11 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    # uvicorn only configures its own loggers; without this, app.* INFO is dropped.
+    logging.basicConfig(
+        level=os.environ.get("BOOPBOX_LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     app = FastAPI(title="BoopBox Server", lifespan=lifespan)
 
     @app.exception_handler(AuthError)

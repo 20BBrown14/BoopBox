@@ -11,3 +11,4 @@ dist/
 *.db-wal
 *.db-shm
 .env
+firmware-bins/

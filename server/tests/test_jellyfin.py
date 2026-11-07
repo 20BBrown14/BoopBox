@@ -96,35 +96,53 @@ async def test_open_ranged_forwards_range_and_relays_206():
 # --- duration ---
 
 
+def _items_response(item: dict) -> httpx.Response:
+    # duration() reads item metadata via the /Items?ids= query form, which
+    # returns the match wrapped in an "Items" list.
+    return httpx.Response(200, json={"Items": [item]})
+
+
 async def test_duration_converts_ticks_to_seconds():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == f"/Items/{ITEM}"
-        return httpx.Response(200, json={"RunTimeTicks": 184 * _TICKS_PER_SECOND})
+        assert request.url.path == "/Items"
+        assert request.url.params.get("ids") == ITEM
+        return _items_response({"RunTimeTicks": 184 * _TICKS_PER_SECOND})
 
     src = _source(handler)
     assert await src.duration(ITEM) == 184
 
 
 async def test_duration_missing_ticks_is_none():
-    src = _source(lambda r: httpx.Response(200, json={"Name": "x"}))
+    src = _source(lambda r: _items_response({"Name": "x"}))
     assert await src.duration(ITEM) is None
 
 
 async def test_duration_zero_ticks_is_none():
-    src = _source(lambda r: httpx.Response(200, json={"RunTimeTicks": 0}))
+    src = _source(lambda r: _items_response({"RunTimeTicks": 0}))
     assert await src.duration(ITEM) is None
 
 
-async def test_duration_passes_user_id_when_set():
+async def test_duration_no_match_is_none():
+    # Empty Items (unknown id) -> unknown duration, not an error.
+    src = _source(lambda r: httpx.Response(200, json={"Items": []}))
+    assert await src.duration(ITEM) is None
+
+
+async def test_duration_never_sends_user_id():
+    # duration() goes through the /Items?ids= query form, which must not carry
+    # userId: the path form /Items/{id} 400s without a user context, and the
+    # query form is scoped by the API key.
     seen = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["userId"] = request.url.params.get("userId")
-        return httpx.Response(200, json={"RunTimeTicks": _TICKS_PER_SECOND})
+        seen["ids"] = request.url.params.get("ids")
+        return _items_response({"RunTimeTicks": _TICKS_PER_SECOND})
 
     src = _source(handler, user_id="user-7")
     assert await src.duration(ITEM) == 1
-    assert seen["userId"] == "user-7"
+    assert seen["userId"] is None
+    assert seen["ids"] == ITEM
 
 
 # --- members ---

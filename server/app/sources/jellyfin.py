@@ -105,20 +105,10 @@ class JellyfinSource:
 
     async def duration(self, item: str) -> int | None:
         self._require_key()
-        params = {"userId": self._user_id} if self._user_id else None
-        try:
-            resp = await self._client.get(f"/Items/{item}", params=params)
-        except httpx.HTTPError as err:
-            raise _connection_error(err) from err
-        _raise_for_status(resp, item)
-        try:
-            body = resp.json()
-        except ValueError as err:
-            raise SourceError(
-                ErrorCode.source_unavailable,
-                log_detail=f"jellyfin metadata not JSON for {item!r}",
-            ) from err
-        ticks = body.get("RunTimeTicks")
+        items = await self._list_items(item, ids=item)
+        if not items:
+            return None
+        ticks = items[0].get("RunTimeTicks")
         if not ticks:  # None or 0 -> unknown
             return None
         return int(ticks) // _TICKS_PER_SECOND

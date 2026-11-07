@@ -353,6 +353,44 @@ generated `/firmware/manifest.json` stays **public** — it is USB-side
 provisioning metadata, not a box-authenticated fetch. See the Authentication
 section for how device secrets are provisioned.
 
+#### Testing OTA end to end
+
+The box firmware (`firmware/BoopBox_v0.1.0.yaml`) handles `get_version` and
+`flash` on `boopbox/<id>/cmd`, and `get_version` on `boopbox/all/cmd`. On
+`flash` it downloads `${server_base_url}<url>` over HTTP Basic (device id plus
+the OTA secret) and verifies the md5 before rebooting.
+
+Setup, with `<server>` as the host the box can reach:
+
+1. Set `BOOPBOX_SEED_DEVICE_OTA_SECRET` in `server/.env` and put the same value
+   in `firmware/secrets.yaml` as `boopbox_ota_secret` (gitignored).
+2. Build the baseline and the target from the same YAML, overriding the
+   substitutions as needed (`mqtt_broker`, `mqtt_port`, `server_base_url`,
+   `firmware_version`). The target must be the OTA-format bin
+   (`firmware.ota.bin`), not the factory image.
+   e.g. `esphome -s firmware_version 0.2.0 compile BoopBox_v0.1.0.yaml`, then
+   take `.esphome/build/boopbox/.pioenvs/boopbox/firmware.ota.bin`.
+3. Put the target at `server/firmware-bins/esp32s3/boopbox-<target>.bin` (bins
+   there are gitignored; compose mounts the dir at `/firmware-bins`) and set
+   `ota.manifest_version` in `config.yaml` to `<target>`. Restart the app so the
+   index picks it up.
+4. Flash the baseline over USB once. It reports its version on connect, which
+   already triggers the flash if it is stale.
+5. To re-trigger manually, run `server/scripts/ota_trigger.sh [device_id]`
+   (reads the login from `.env`; `BASE=` overrides the URL), or:
+
+```
+TOKEN=$(curl -s -X POST http://<server>:9685/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"<user>","password":"<pass>"}' | jq -r .access_token)
+curl -X POST http://<server>:9685/ota/update \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"device_id":"boop-test"}'
+```
+
+The server logs `ota: flashing ...`, the box fetches the bin and reboots, and
+its next `version` report shows the target.
+
 ### Authentication
 
 The server recognizes three separate credentials, each accepted only on its own
