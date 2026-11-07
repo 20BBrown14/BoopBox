@@ -705,9 +705,9 @@ i2s_audio:
     i2s_bclk_pin: ${i2s_bclk_pin}
     i2s_lrclk_pin: ${i2s_lrclk_pin}
 
-# MAX98357A: GAIN floating (9 dB). SD pulled to VIN (1M) = Left-channel-only.
-# One physical driver, so mono: the same samples go to both I2S slots, and the
-# amp takes the left one.
+# MAX98357A: GAIN to GND (12 dB), SD floating = (L+R)/2 mix. One physical
+# driver, so mono: the same samples go to both I2S slots, and the amp's L+R mix
+# plays them at full level. Wiring: notes/breadboard-mono-connections.md.
 speaker:
   - platform: i2s_audio
     id: boop_speaker

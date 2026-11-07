@@ -20,7 +20,7 @@ Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in 
 | DIN | D11 / GPIO11 | |
 | VIN | USB (5V) | 1000uF across VIN/GND right at the amp |
 | GND | GND | |
-| GAIN | — | floating = 9 dB |
+| GAIN | GND | GND = 12 dB (floating = 9 dB was too quiet) |
 | SD | — | floating = (L+R)/2 mono; GPIO12 reserved for mute/sleep later |
 
 - Power: 5V gives ~2.5W clean into 4Ω (speaker is rated 3W); 3.3V is only ~1.3W. USB pin is dead on battery, so the battery build moves VIN to BAT (3.7–4.2V is in range).
