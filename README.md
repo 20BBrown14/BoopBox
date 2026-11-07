@@ -227,6 +227,7 @@ only two beeps, the start of playback is being clipped.
 | `beeps_sweep.mp3` | Stereo MP3, the default check |
 | `beeps_sweep.wav` | Mono WAV, rules out the MP3 decoder |
 | `beeps_sweep_mono.mp3` | Mono MP3, reproduces a known issue: it does **not** play on ESPHome 2026.6.5 |
+| `bass_steps.mp3` | Stereo MP3, equal-level (-6 dBFS) tones at 50, 60, 80, 100, 125, 150, 200, 250, 300, 400 Hz, 3 s each with 1 s gaps. Note the lowest step you can clearly hear to compare drivers or enclosures |
 
 ### Using your own music
 

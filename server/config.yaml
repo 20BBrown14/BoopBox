@@ -12,6 +12,10 @@ mappings:                             # slug -> list of entries; server picks on
     - source: jellyfin-main           # references a sources[].id
       item: "badb9717a8d1b377c858bda2da285a34"
       kind: collection                      # item | collection; default item
+  "boop/spidercrawl":
+    - source: jellyfin-main
+      item: "REPLACE_WITH_SOURCE_ITEM_ID"   # TODO: Jellyfin id of the Spidercrawl track
+      kind: item
 
 streaming:
   mode: proxy                         # proxy | redirect (redirect not yet functional)
