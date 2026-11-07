@@ -129,9 +129,9 @@ Direction: capacitive touch buttons (no moving parts, less 3D modelling), an LED
 ### Pin plan
 | Function | Feather | GPIO | Notes |
 |---|---|---|---|
-| Touch: vol− | D5 | GPIO5 | touch ch 5 |
-| Touch: play/pause | D6 | GPIO6 | touch ch 6 |
-| Touch: vol+ | A4 | GPIO14 | touch ch 14 |
+| Touch: vol+ | D5 | GPIO5 | touch ch 5 |
+| Touch: vol− | D6 | GPIO6 | touch ch 6 |
+| Touch: play/pause | A4 | GPIO14 | touch ch 14 |
 | Touch: spare | A5 | GPIO8 | touch ch 8 |
 | LED ring data | A0 | GPIO18 | not a touch pin; via 74AHCT125 to 5V |
 
@@ -156,6 +156,8 @@ From the Espressif touch sensor design note (written for the original ESP32, but
 
 ### ESPHome touch config (S3)
 On S2/S3 the raw value **rises** on touch. The default 8 ms measurement is too long for the S3.
+
+**`threshold` is a delta, not an absolute value** (ESPHome 2026.10, checked in `esp32_touch.cpp`). On S2/S3 a touch is detected in hardware when `smooth − benchmark > threshold`. The hardware's `benchmark` tracks the untouched baseline on its own, from boot and through drift, so baseline calibration is already handled. `threshold` is only written to the hardware when the channel is created. Calling `set_threshold()` at runtime has no effect without recreating the channel. Pick it from the `difference=` values that `setup_mode` logs, at roughly 50–70% of the touched difference.
 ```yaml
 esp32_touch:
   setup_mode: true            # log raw values to pick thresholds; set false after
@@ -164,9 +166,27 @@ esp32_touch:
 binary_sensor:
   - platform: esp32_touch
     name: "Play/Pause"
-    pin: GPIO6
-    threshold: 1000           # placeholder: set between idle and touched readings
+    pin: GPIO14
+    threshold: 1000           # placeholder delta: ~50-70% of the touched `difference` from setup_mode
 ```
+
+### Breadboard calibration (2026-11-07)
+Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
+| Pad | Idle | Hover / nearby hand | Direct touch |
+|---|---|---|---|
+| Vol Up (GPIO5) | about ±180 | 800–1900 (sustained) | 148k–221k |
+| Vol Down (GPIO6) | about ±160 | — | 365k–418k |
+| Play Pause (GPIO14) | about ±180 | — | 320k–402k |
+
+- Threshold set to 5000 on all three: well above idle and hover, far below a touch.
+- Skin on bare metal is a near-direct contact, so these deltas are roughly 100× what a touch through a 2–3 mm wall will give. **Recalibrate behind the real panel.**
+- Vol Up picked up 800–1000 while play/pause was being touched, from the hand or lead being nearby. Keep leads apart.
+- After a long press, `difference` can swing negative on release (the benchmark lags). This is harmless for detection.
+
+### Finding: audio playback shifts the touch readings (2026-11-07)
+With threshold 5000, play/pause latched ON while music played with no finger on it. When the music stopped, play/pause dropped to OFF and vol down latched ON. So the amp or speaker is shifting the untouched readings by more than 5000. The baseline adapts while the music plays, and stopping it is a step change. The pad's baseline stops updating while it reads as touched, so a shift past the threshold stays latched.
+Suspects: supply ripple or ground bounce from the class-D amp on the shared USB 5V (the Espressif note says to power the ESP from a regulator not shared with high-current loads), or the amp's switching outputs and speaker wires coupling into the bare touch leads.
+Mitigations to try: route touch leads away from the amp and speaker wires; twist the speaker pair; make sure the 1000 µF cap is at the amp VIN; enable the S3 hardware denoise channel (`denoise_grade` / `denoise_cap_level`), which is designed to reject supply noise; raise the threshold (a touch on bare metal is 150k+).
 
 ### Open items / to test
 - Power switch design: the EN pin only cuts 3.3 V; the amp and ring stay on USB/BAT. The battery build needs a switch in the battery line or a load switch.
