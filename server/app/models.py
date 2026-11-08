@@ -29,7 +29,7 @@ class Boop(BaseModel):
     """Inbound boop published by the box to `boopbox/<id>/boop`.
 
     Carries the wire fields only; the server records its own receive time
-    elsewhere (P2/P7).
+    elsewhere.
     """
 
     v: int
@@ -91,7 +91,7 @@ class FlashCmd(BaseModel):
     """Fat `flash` command published to `boopbox/<id>/cmd` (per-device only).
 
     Carries what ESPHome's `ota: http_request.flash` action needs inline: the
-    bin `url` and its `md5`. Both come from P8's firmware index (never
+    bin `url` and its `md5`. Both come from the firmware index (never
     hand-built): `url` is the absolute, non-redirecting served path and `md5` is
     computed from the bin's disk bytes. `cmd` is fixed to `flash` so the wire
     payload is self-describing and a consumer routes on `cmd` regardless of which
@@ -110,7 +110,7 @@ class VersionReply(BaseModel):
     The box publishes its running firmware here in reply to `get_version` (and
     optionally unsolicited, e.g. on boot). `v` is the protocol version (read from
     the wire, no default, so the server version-checks it). `firmware` is the
-    version string; `chip` is the chip family and must match P8's chip subfolder
+    version string; `chip` is the chip family and must match the firmware chip subfolder
     keys (e.g. `esp32s3`) so a flash targets the box's own reported chip.
     """
 

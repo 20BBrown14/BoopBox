@@ -137,7 +137,6 @@ def test_cache_invalidation_on_mtime(firmware_dir, monkeypatch):
     cache = FirmwareCache(firmware_dir, VERSION)
     first_md5 = cache.index("esp32s3").md5
 
-    # No change -> md5 is not recomputed on read.
     calls = {"n": 0}
     real_md5 = firmware_mod._md5_of
 
@@ -148,7 +147,7 @@ def test_cache_invalidation_on_mtime(firmware_dir, monkeypatch):
     monkeypatch.setattr(firmware_mod, "_md5_of", counting_md5)
     cache.manifest()
     cache.index("esp32s3")
-    assert calls["n"] == 0  # cache reused, no rehash
+    assert calls["n"] == 0
 
     # Change the bin + bump mtime -> recompute.
     bin_path = firmware_dir / "esp32s3" / f"boopbox-{VERSION}.bin"

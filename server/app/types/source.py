@@ -4,7 +4,7 @@ The source takes an opaque, source-internal `item` id; it never sees the tag
 slug (the resolver already mapped slug -> (source, item)). Unavailable
 conditions surface as a `SourceError` carrying an `ErrorCode`; upstream detail
 (URLs, item ids, keys, bodies) rides in `log_detail` only and never reaches the
-client. P6/P3 build the scrubbed client-facing message from the code.
+client. The scrubbed client-facing message is built from the code.
 """
 
 from collections.abc import AsyncIterator
@@ -16,9 +16,9 @@ from app.errors import ErrorCode
 
 @dataclass(frozen=True)
 class Range:
-    """A parsed, inclusive byte range. P6 maps the HTTP `Range` header to this;
-    the source stays transport-agnostic. `None` (not this type) means the whole
-    object."""
+    """A parsed, inclusive byte range. The stream route maps the HTTP `Range`
+    header to this; the source stays transport-agnostic.
+    `None` (not this type) means the whole object."""
 
     start: int
     end: int
@@ -38,10 +38,10 @@ class SourceError(Exception):
 
 
 class StreamResponse(Protocol):
-    """An open, ranged byte stream plus the facts P6 needs for a 200/206.
+    """An open, ranged byte stream plus the facts the stream route needs for a 200/206.
 
-    An async context manager: `__aexit__` releases the upstream connection so P6
-    can clean up when the box disconnects mid-stream.
+    An async context manager: `__aexit__` releases the upstream connection so the
+    stream route can clean up when the box disconnects mid-stream.
     """
 
     content_type: str
@@ -72,8 +72,9 @@ class Source(Protocol):
     async def duration(self, item: str) -> int | None:
         """Item duration in seconds, or None if unknown.
 
-        Obtainable without opening the stream: P7 needs it at token-mint time,
-        before `open`. Raises `SourceError` if the item/source is unavailable.
+        Obtainable without opening the stream: the boop handler needs it at
+        token-mint time, before `open`. Raises `SourceError` if the item/source
+        is unavailable.
         """
         ...
 
@@ -81,9 +82,10 @@ class Source(Protocol):
         """Expand a collection id to its member item ids.
 
         A mapping entry of kind `collection` names a collection, not a playable
-        item; P7 calls this to turn it into concrete items and then picks one.
+        item; the boop handler calls this to turn it into concrete items and
+        then picks one.
         An empty collection or a failed expansion raises `SourceError`
-        (`item_unavailable` / `source_unavailable`); P7 publishes the scrubbed
-        error. Implemented by the fake (tests) and Jellyfin (P9).
+        (`item_unavailable` / `source_unavailable`); the handler
+        publishes the scrubbed error. Implemented by the fake (tests) and Jellyfin.
         """
         ...

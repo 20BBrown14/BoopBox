@@ -1,4 +1,4 @@
-"""Broker-backed integration test (P10 acceptance; deferred from P7).
+"""Broker-backed integration test .
 
 Opt-in and Docker-gated: brings up the real bundled Mosquitto broker + the app
 via `docker compose --profile bundled-broker up` against an isolated test stack,
@@ -39,20 +39,15 @@ BOX_PASS = "box-pw"
 OTHER_BOX_ID = "boop-other"
 STREAM_SECRET = "integration-secret"
 
-# Host-published ports for the test stack. Defaults deliberately avoid the real
-# broker (1883) and the local dev app (9685) so the test never collides with a
-# running broker or dev server; override via env for parallel runs. These are
-# host-side only — inside the compose network the broker still listens on 1883
-# (mosquitto.conf + the ACLs) and the app on 9685.
+# Host-published ports, offset from the real broker (1883) and dev app (9685) to
+# avoid collisions. Inside the compose network they stay 1883 and 9685.
 BROKER_PORT = int(os.environ.get("BOOPBOX_TEST_BROKER_PORT", "1884"))
 APP_PORT = int(os.environ.get("BOOPBOX_TEST_APP_PORT", "9686"))
 APP_BASE = f"http://127.0.0.1:{APP_PORT}"
 
-# Every container (helper runs + compose services) runs as the invoking user, so
-# files written to mounts are owned by the caller — not root or the image's uid
-# 1883. Mosquitto 2.0 is happy as long as its config/password files are owned by
-# the running user and not world-readable (chmod 0700 below), and host cleanup
-# never hits undeletable root-owned leftovers.
+# Containers run as the invoking user so mounted files stay host-owned and
+# cleanup never hits root-owned leftovers. Mosquitto 2.0 accepts this as long as
+# its config/password files are not world-readable (chmod 0700 below).
 HOST_USER = f"{os.getuid()}:{os.getgid()}"
 
 # Fake source + one item mapping so a boop yields a playable stream with real
@@ -198,12 +193,9 @@ def stack(tmp_path_factory):
     _mosquitto_passwd(password_file, BOX_ID, BOX_PASS, create=False)
     _mosquitto_passwd(password_file, OTHER_BOX_ID, BOX_PASS, create=False)
 
-    # Copy the shipped broker config/ACL into the project and own them by the
-    # mosquitto user: the repo files are owned by the host user and world
-    # readable, which mosquitto 2.0 warns about (and future versions refuse).
-    # A read-only bind of the repo files can't be fixed by the entrypoint, so
-    # mount normalized copies instead (the ACLs under test are still the shipped
-    # ones, byte for byte).
+    # Mount permission-normalized copies: the repo files are world-readable,
+    # which mosquitto warns about, and a read-only bind can't be fixed in place.
+    # The ACL content under test is still byte-for-byte the shipped one.
     conf_file = project / "mosquitto.conf"
     acl_file = project / "aclfile"
     conf_file.write_text((MOSQUITTO_DIR / "mosquitto.conf").read_text())
@@ -211,18 +203,8 @@ def stack(tmp_path_factory):
     _normalize_broker_file(conf_file)
     _normalize_broker_file(acl_file)
 
-    # Isolated compose: mount the normalized copies of the shipped broker
-    # config/ACL + build the app image from the repo. Host ports are offset from
-    # the real compose (see BROKER_PORT
-    # / APP_PORT) so the test never collides with a running broker or dev app;
-    # the container-internal ports stay 9685 (app) and 1883 (broker).
-    #
-    # The broker runs as the invoking host user (see HOST_USER) so its config
-    # and persistence are host-owned, never root/uid-1883. The app image is
-    # built to run as root inside its container, so it keeps the image default;
-    # it only writes to the app-data named volume (never the host tmp dir), and
-    # `compose down -v` drops both named volumes, leaving the tmp dir to just the
-    # host-owned config/.env the test authored.
+    # The app image runs as root, so it only writes to a named volume, never the
+    # host tmp dir.
     compose = textwrap.dedent(
         f"""
         services:
@@ -254,8 +236,8 @@ def stack(tmp_path_factory):
     )
     (project / "docker-compose.yml").write_text(compose)
 
-    # Build + pull can exceed a minute on first run; keep --build out of the
-    # health window by building up-front with a generous timeout.
+    # First-run build + pull can exceed a minute; build up-front with a long
+    # timeout so it stays out of the health window.
     up = subprocess.run(
         ["docker", "compose", "up", "--build", "-d"],
         cwd=project,
@@ -267,22 +249,14 @@ def stack(tmp_path_factory):
         pytest.fail(f"compose up failed:\n{up.stdout}\n{up.stderr}")
 
     try:
-        # A bring-up failure here aborts the whole module: because this fixture
-        # is module-scoped, pytest.fail() errors every test that depends on it,
-        # so one broken stack fails the entire integration run rather than
-        # silently letting later tests proceed against a half-up stack.
         _require_broker_up(project, timeout=90)
         if not _wait_for_health(90):
             _fail_with_logs(project, "app /health never became ready")
-        # Readiness is behavioral, not log-scraped: the app's "mqtt connected;
-        # subscribed" line is emitted at INFO and the app does no logging setup,
-        # so under uvicorn's default WARNING root level it never surfaces. Prove
-        # the subscription is live by boop -> play round-tripping it instead.
+        # Readiness is proven by a boop -> play round trip, not by log scraping.
         _wait_for_app_subscribed(project, timeout=30)
         yield project
     finally:
-        # down -v drops the named app-data/mosquitto-data volumes; everything
-        # else in the tmp dir is host-owned, so pytest's cleanup handles it.
+        # -v drops the named volumes; the rest of the tmp dir is host-owned.
         subprocess.run(
             ["docker", "compose", "down", "-v"],
             cwd=project,

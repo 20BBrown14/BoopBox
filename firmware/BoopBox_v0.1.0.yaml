@@ -1,4 +1,4 @@
-# BoopBox v0.1.0 — WiFi onboarding + NFC read/write + audio bring-up + MQTT.
+# BoopBox v0.1.0
 # Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode,
 # MAX98357A I2S amp. Wiring: hardware/boopbox-proto (KiCad).
 

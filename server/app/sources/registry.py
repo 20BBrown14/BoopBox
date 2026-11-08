@@ -1,7 +1,7 @@
 """Source registry: build one `Source` per configured entry, keyed by id.
 
 `SourceConfig.id` is the lookup key; `SourceConfig.type` selects the builder.
-The type->builder map is open so P9 registers `jellyfin` without editing P5.
+The type->builder map is open so `jellyfin` registers without editing this module.
 """
 
 from collections.abc import Callable
@@ -11,7 +11,7 @@ from app.types.config import SourceConfig
 from app.types.source import Source
 
 # A builder turns a config entry + settings (for per-source secrets) into a
-# Source. P9 registers the jellyfin builder via register_source_type.
+# Source. The jellyfin builder registers via register_source_type.
 SourceBuilder = Callable[[SourceConfig, Settings], Source]
 
 _BUILDERS: dict[str, SourceBuilder] = {}
@@ -31,7 +31,7 @@ def build_source(config: SourceConfig, settings: Settings) -> Source:
 
 class SourceRegistry:
     """Holds built sources keyed by id. Constructed at startup from
-    `Settings.config.sources` and stashed on app state; P6 reads it from there."""
+    `Settings.config.sources` and stashed on app state."""
 
     def __init__(self, sources: dict[str, Source]) -> None:
         self._sources = sources

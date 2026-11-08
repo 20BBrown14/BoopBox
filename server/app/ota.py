@@ -50,7 +50,7 @@ class OtaPolicy:
             self._target_version,
         )
         if reply.firmware == self._target_version:
-            return  # current; nothing to do
+            return
 
         entry = self._firmware.index(reply.chip)
         if entry is None:

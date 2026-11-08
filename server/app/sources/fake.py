@@ -2,7 +2,7 @@
 
 Serves fixed bytes with Range support, reports a configurable duration (or
 None), and can simulate `item_unavailable` / `source_unavailable`. No external
-dependencies so P6/P7/P9 tests stay stable.
+dependencies so dependent tests stay stable.
 """
 
 from collections.abc import AsyncIterator

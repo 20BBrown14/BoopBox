@@ -1,7 +1,7 @@
 """Pure HMAC stream-token mint and verify.
 
 Dependency-free (stdlib only, no `Settings`, no clock of its own): the secret,
-pause budget, and `now` are all passed in by the caller (P6/P7 source them from
+pause budget, and `now` are all passed in by the caller (callers source them from
 `Settings` and the real clock). This keeps the single-server-clock rule honest
 and the module trivially unit-testable.
 
@@ -17,7 +17,7 @@ verify decodes the same variant. JSON is sorted-keys, no spaces, so identical
 claims always produce an identical `body`.
 
 Verify fails as `unauthorized` (can't parse) vs `forbidden` (parsed, rejected),
-matching the 401/403 boundary; P6 turns the code into an HTTP status.
+matching the 401/403 boundary; the stream route turns the code into an HTTP status.
 """
 
 import base64
@@ -101,7 +101,7 @@ def verify(token: str, now: int, *, secret: str) -> StreamClaims | ErrorCode:
     A valid MAC over structurally broken claims is malformed (401), not a
     rejection (403): the MAC proved authenticity, the payload is simply garbage.
     """
-    # Step 1: shape + mac base64.
+    # Shape + mac base64.
     body, sep, mac_part = token.partition(".")
     if not sep or not body or not mac_part:
         return ErrorCode.unauthorized
@@ -110,11 +110,11 @@ def verify(token: str, now: int, *, secret: str) -> StreamClaims | ErrorCode:
     except (binascii.Error, ValueError):
         return ErrorCode.unauthorized
 
-    # Step 2: constant-time MAC compare.
+    # Constant-time MAC compare.
     if not hmac.compare_digest(provided_mac, _mac(secret, body)):
         return ErrorCode.forbidden
 
-    # Step 3: decode body only after the MAC verifies.
+    # Decode body only after the MAC verifies.
     try:
         payload = json.loads(_b64url_decode(body))
     except (binascii.Error, ValueError):
@@ -133,9 +133,8 @@ def verify(token: str, now: int, *, secret: str) -> StreamClaims | ErrorCode:
     if not isinstance(claims.exp, int) or isinstance(claims.exp, bool):
         return ErrorCode.unauthorized
 
-    # Step 4: expiry against the passed-in server clock.
+    # Expiry against the passed-in server clock.
     if claims.exp <= now:
         return ErrorCode.forbidden
 
-    # Step 5.
     return claims

@@ -5,7 +5,7 @@ The server reads built `.bin` files from a server-side firmware directory
 
 - the ESP-Web-Tools `manifest.json` (browser provisioning over USB), and
 - an internal firmware index (chip -> version/path/md5) that the push-command
-  builder (P11) consults.
+  builder consults.
 
 `version` comes only from `ota.manifest_version`; md5 is computed from the bin
 bytes on disk. The build is cached and recomputed only when a relevant bin's
@@ -39,7 +39,7 @@ def served_path(chip: str, version: str) -> str:
 @dataclass(frozen=True)
 class IndexEntry:
     version: str
-    path: str  # absolute served path
+    path: str
     md5: str
 
 
@@ -91,7 +91,7 @@ class FirmwareCache:
         self._version = version
         self._manifest: dict = {}
         self._index: dict[str, IndexEntry] = {}
-        # (chip -> mtime_ns) the current build was computed from.
+        # chip -> mtime_ns the current build was computed from
         self._mtimes: dict[str, int] = {}
         self.rebuild()
 

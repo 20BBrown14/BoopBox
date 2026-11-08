@@ -24,7 +24,7 @@ class ErrorCode(StrEnum):
 
 # HTTP-surfaced codes only. unknown_tag and unsupported_version are MQTT-only and
 # are deliberately absent: a lookup for them is a programming error, not a silent
-# default, so P6 must never map an MQTT-only code to an HTTP status.
+# default, so nothing may map an MQTT-only code to an HTTP status.
 HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.unauthorized: 401,
     ErrorCode.forbidden: 403,

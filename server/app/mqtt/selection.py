@@ -1,6 +1,6 @@
 """Collection-aware entry selection: a slug's entry list -> one concrete item.
 
-Selection rule (MVP): pick one entry uniformly at random from the list, then if
+Selection rule: pick one entry uniformly at random from the list, then if
 that entry is a collection, expand it via the source and pick one member
 uniformly at random. Picking-then-expanding avoids expanding collections that
 will not be played. Kept in one place so weighting can replace the uniform pick
@@ -37,7 +37,7 @@ async def select_entry(
     entry = rng.choice(entries)
     if entry.kind is MappingKind.collection:
         source = sources.get(entry.source)
-        members = await source.members(entry.item)  # SourceError on empty/fail
+        members = await source.members(entry.item)
         item = rng.choice(members)
         return Selection(source=entry.source, item=item)
     return Selection(source=entry.source, item=entry.item)

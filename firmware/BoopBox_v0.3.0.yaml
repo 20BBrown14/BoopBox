@@ -1,4 +1,4 @@
-# BoopBox v0.3.0 — WiFi onboarding + NFC read/write + audio bring-up + MQTT.
+# BoopBox v0.3.0
 # Hardware: Adafruit Feather ESP32-S3 (4MB/2MB), PN532 in I2C mode,
 # MAX98357A I2S amp. Wiring: hardware/boopbox-proto (KiCad).
 
@@ -468,7 +468,7 @@ button:
           # Media pipeline so the Play/Pause/Stop buttons act on it.
           media_url: !lambda 'return id(test_audio_url).state;'
 
-  # Software transport controls (no physical buttons yet). These act on whatever
+  # Software transport controls. These act on whatever
   # the player is doing — a server play or the test-audio button.
   - platform: template
     name: "Play"

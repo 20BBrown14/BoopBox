@@ -334,7 +334,7 @@ async def test_send_cmd_requires_connection(settings, devices):
     assert svc.client.published[0][0] == "boopbox/boop-test/cmd"
 
 
-# --- P8a: get_version / flash commands + version reply ---
+# --- get_version / flash commands + version reply ---
 
 
 async def test_get_version_is_thin_cmd_shape():

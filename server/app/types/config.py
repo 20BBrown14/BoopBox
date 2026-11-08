@@ -9,8 +9,8 @@ class StreamingMode(StrEnum):
 
 
 class MappingKind(StrEnum):
-    item = "item"  # a single playable item
-    collection = "collection"  # a set; the server picks one at random to play
+    item = "item"
+    collection = "collection"
 
 
 class SourceConfig(BaseModel):

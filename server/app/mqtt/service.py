@@ -32,8 +32,7 @@ SUBSCRIPTIONS = (BOOP_TOPIC, VERSION_TOPIC)
 _TOPIC_RE = re.compile(r"^boopbox/([^/]+)/([^/]+)$")
 _RECONNECT_DELAY_SECONDS = 5
 
-# A P11 push-policy hook: called with each parsed version reply. The policy
-# decides whether to flash and uses this service's publish helpers; P7 never
+# Push-policy hook: called with each parsed version reply. The service never
 # decides to flash itself.
 VersionReplyHandler = Callable[[str, VersionReply], Awaitable[None]]
 
@@ -93,7 +92,7 @@ class MqttService:
         self._task: asyncio.Task | None = None
         self._stopping = asyncio.Event()
         self.client: aiomqtt.Client | None = None
-        # P11 push-policy seam; may be set after construction (P11 wires it in).
+        # May be set after construction.
         self.on_version_reply: VersionReplyHandler | None = on_version_reply
 
     def start(self) -> None:
@@ -177,18 +176,18 @@ class MqttService:
         elif isinstance(response, Error):
             await publish_error(client, device_id, response)
 
-        # Step 7: stamp last_seen off-loop (aiosqlite runs off the loop thread).
+        # Stamp last_seen off-loop (aiosqlite runs off the loop thread).
         try:
             await self._devices.update_last_seen(device_id)
         except Exception:  # last_seen is best-effort; never drop the response
             logger.exception("mqtt: last_seen update failed for %s", device_id)
 
     async def _handle_version(self, device_id: str, raw: bytes) -> None:
-        """Parse a `/version` reply, stamp the DB, and hand it to the P11 policy.
+        """Parse a `/version` reply, stamp the DB, and hand it to the push policy.
 
         Never publishes a response itself — a version reply is request/response
         telemetry, not the boop->play/error contract. The flash decision lives
-        behind `on_version_reply` (P11), which reuses this service's publishers.
+        behind `on_version_reply`, which reuses this service's publishers.
         """
         reply = parse_version_reply(device_id, raw)
         if reply is None:
@@ -218,7 +217,7 @@ class MqttService:
     async def send_flash(self, device_id: str, flash: FlashCmd) -> None:
         """Publish a fat `flash` command to a single device (never broadcast).
 
-        P11's push policy calls this with a FlashCmd built from P8's firmware
+        The push policy calls this with a FlashCmd built from the firmware
         index. Raises if the client is not currently connected.
         """
         if self.client is None:

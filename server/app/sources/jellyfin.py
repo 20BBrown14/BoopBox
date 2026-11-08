@@ -109,7 +109,7 @@ class JellyfinSource:
         if not items:
             return None
         ticks = items[0].get("RunTimeTicks")
-        if not ticks:  # None or 0 -> unknown
+        if not ticks:
             return None
         return int(ticks) // _TICKS_PER_SECOND
 

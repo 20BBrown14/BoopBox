@@ -104,7 +104,7 @@ async def seed_device(
     """Upsert the seed device. Idempotent: an existing row keeps its created_at.
     The MQTT password is a broker concern and is not stored here.
 
-    `ota_secret`/`device_token` are the MVP stand-in for provisioning. A
+    `ota_secret`/`device_token` are the stand-in for provisioning. A
     non-empty value is the source of truth and replaces a stale stored hash, so
     setting or rotating it in .env takes effect on restart. An empty value never
     clears an existing hash.

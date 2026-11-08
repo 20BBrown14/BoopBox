@@ -34,7 +34,7 @@ def test_http_error_returns_body_and_status():
 def test_http_error_uses_generic_default_when_omitted():
     body, status = http_error(ErrorCode.item_unavailable)
     assert body["code"] == "item_unavailable"
-    assert body["message"]  # non-empty generic message
+    assert body["message"]
     assert status == 404
 
 
@@ -58,7 +58,7 @@ def test_mqtt_error_returns_valid_model_with_correlation_block():
     assert err.v == PROTOCOL_VERSION
     assert err.code is ErrorCode.unknown_tag
     assert err.boop == BoopRef(id="b1", slug="boop/zelda")
-    assert err.message  # generic default
+    assert err.message
 
 
 def test_mqtt_error_partial_boop_for_unsupported_version():

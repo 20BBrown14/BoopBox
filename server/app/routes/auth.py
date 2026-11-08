@@ -1,6 +1,6 @@
 """POST /auth/token — exchange the configured user credential for a JWT.
 
-The config-file MVP has one user: the credential in `BOOPBOX_AUTH_*`. A correct
+The config-file auth has one user: the credential in `BOOPBOX_AUTH_*`. A correct
 username+password returns a short-lived bearer token the API verifies on
 user-facing routes. Wrong or unconfigured credentials return a generic 401 that
 does not distinguish "no such user" from "bad password".

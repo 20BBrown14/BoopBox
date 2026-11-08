@@ -14,7 +14,7 @@ from app.types.token import StreamClaims
 SECRET = "s3cret"
 SOURCE_ID = "fake-main"
 ITEM = "fake-item"
-DATA = bytes(range(256)) * 8  # 2048 deterministic bytes
+DATA = bytes(range(256)) * 8
 
 CONFIG = textwrap.dedent(
     """

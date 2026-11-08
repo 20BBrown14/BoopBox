@@ -69,7 +69,7 @@ async def test_open_full_relays_bytes_and_facts():
 
 
 async def test_open_ranged_forwards_range_and_relays_206():
-    full = bytes(range(256)) * 8  # 2048 bytes
+    full = bytes(range(256)) * 8
     sl = full[10:21]
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -177,7 +177,7 @@ async def test_members_expands_album_children_to_audio_tracks():
 
     src = _source(handler, user_id="user-7")
     assert await src.members("col-1") == ["t1", "t2"]
-    # userId must never be sent on the collection walk (BoxSet-member drop bug),
+    # userId must never be sent on the collection walk,
     # even when the source has a user_id configured.
     assert seen_user_ids == [None, None]
 
@@ -299,7 +299,7 @@ async def test_upstream_detail_is_log_only_not_client_message():
     err = exc.value
 
     # The log-only detail may describe the failure, but the CLIENT-facing
-    # surface (what P6/P3 render from the code) must carry none of it.
+    # surface (rendered from the code) must carry none of it.
     client_msg = default_message(err.code)
     body, status = http_error(err.code)
     assert status == 502

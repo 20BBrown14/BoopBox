@@ -1,4 +1,4 @@
-"""The boop -> one response flow (P7 steps 1-7).
+"""The boop -> one response flow .
 
 `build_response` is pure dispatch: it parses, version-checks, resolves,
 selects, mints, and returns exactly one `Play` or `Error` — never both, never
@@ -64,7 +64,7 @@ async def build_response(
     Returns None only would violate the single-response contract — it never
     does; every branch returns exactly one model.
     """
-    # Step 1: decode + version-check.
+    # Decode and version-check.
     try:
         payload = json.loads(raw)
     except (ValueError, TypeError):
@@ -79,7 +79,7 @@ async def build_response(
     ):
         return mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
 
-    # Step 2: parse the Boop model at a supported version.
+    # Parse the Boop model at a supported version.
     try:
         boop = Boop.model_validate(payload)
     except ValidationError:
@@ -92,7 +92,7 @@ async def build_response(
 
     ref = BoopRef(id=boop.id, slug=boop.slug)
 
-    # Step 3: resolve slug.
+    # Resolve the slug.
     entries = resolve(settings, boop.slug)
     if entries is None:
         return mqtt_error(ErrorCode.unknown_tag, ref)
@@ -104,7 +104,7 @@ async def build_response(
         logger.warning("boop from %s: select failed: %s", device_id, err.log_detail)
         return mqtt_error(err.code, ref)
 
-    # Step 4: duration + mint.
+    # Duration + mint.
     source = sources.get(selection.source)
     try:
         duration = await source.duration(selection.item)
@@ -125,7 +125,7 @@ async def build_response(
         pause_budget=settings.config.streaming.pause_budget_seconds,
     )
 
-    # Step 5-6: build URL + play.
+    # Build the URL and play.
     return Play(
         boop=ref,
         url=_stream_url(settings, token),
@@ -137,7 +137,7 @@ def parse_version_reply(device_id: str, raw: bytes) -> VersionReply | None:
     """Parse a `boopbox/<id>/version` reply, or None if it should be dropped.
 
     Separate from `build_response` (the boop -> one play/error contract): a
-    version reply produces no response, only a parsed value the push policy (P11)
+    version reply produces no response, only a parsed value the push policy
     acts on. Undecodable, unsupported-`v`, or structurally invalid payloads are
     dropped with a log and no side effect.
     """

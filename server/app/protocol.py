@@ -13,7 +13,7 @@ def is_supported(v: int) -> bool:
     Plain integer equality against ``PROTOCOL_VERSION`` (no semver). Enables two
     fail-safe behaviors, each enacted elsewhere:
 
-    - Server receives a ``boop`` with an unsupported ``v`` -> P7 rejects it and
+    - Server receives a ``boop`` with an unsupported ``v`` -> the server rejects it and
       publishes an ``error`` with code ``unsupported_version``.
     - A consumer receiving a higher ``v`` than it speaks ignores the message.
     """

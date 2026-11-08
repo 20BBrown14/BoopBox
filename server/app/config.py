@@ -54,7 +54,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Secret: required.
     stream_secret: str
 
     # User auth (UI/API). A single configured credential logs in and receives a
@@ -64,7 +63,6 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     jwt_ttl_seconds: int = 3600
 
-    # Paths.
     config_path: str = DEFAULT_CONFIG_PATH
     db_path: str = DEFAULT_DB_PATH
 
@@ -72,7 +70,6 @@ class Settings(BaseSettings):
     # ESPHome-source dir; see the firmware layout docs.
     firmware_dir: str = DEFAULT_FIRMWARE_DIR
 
-    # MQTT connection.
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
     mqtt_username: str = ""
@@ -83,11 +80,11 @@ class Settings(BaseSettings):
     # Public base URL for stream links.
     public_base_url: str = "http://127.0.0.1:9685"
 
-    # Seed device (MVP only). The MQTT password is a broker concern and is never
+    # Seed device. The MQTT password is a broker concern and is never
     # stored in the devices table; the env var exists for broker provisioning.
     seed_device_id: str = "boop-test"
     seed_device_mqtt_password: str = ""
-    # Seed device auth secrets (MVP stand-in for provisioning). Hashed and stored
+    # Seed device auth secrets (stand-in for provisioning). Hashed and stored
     # on the seed row at startup; the plaintext is what a box would be flashed
     # with. Empty means the seed device gets no usable auth secret.
     seed_device_ota_secret: str = ""

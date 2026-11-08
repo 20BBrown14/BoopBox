@@ -26,8 +26,8 @@ async def test_pragmas_applied(conn):
         return row[0]
 
     assert (await scalar("PRAGMA journal_mode;")).lower() == "wal"
-    assert int(await scalar("PRAGMA synchronous;")) == 1  # NORMAL
-    assert int(await scalar("PRAGMA foreign_keys;")) == 1  # ON
+    assert int(await scalar("PRAGMA synchronous;")) == 1
+    assert int(await scalar("PRAGMA foreign_keys;")) == 1
     assert int(await scalar("PRAGMA busy_timeout;")) == 5000
 
 

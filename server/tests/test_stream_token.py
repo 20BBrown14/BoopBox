@@ -121,4 +121,4 @@ def test_acceptance_20_minute_item_default_budget():
     token = mint(_claims(), duration=1200, now=now, secret=SECRET, pause_budget=1800)
     result = verify(token, now=now + 600, secret=SECRET)
     assert isinstance(result, StreamClaims)
-    assert result.exp == now + 3000  # ~50 min
+    assert result.exp == now + 3000

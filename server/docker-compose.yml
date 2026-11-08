@@ -32,7 +32,7 @@ services:
       # <host>:<container>. The broker listens on 1883 inside the network
       # (mosquitto.conf + ACLs); the host port is BOOPBOX_BROKER_HOST_PORT,
       # defaulting to 1884 so it does not collide with a broker already on the
-      # host's 1883. 8883 (TLS/remote) is DEFERRED — not wired here. See the
+      # host's 1883. 8883 (TLS/remote) is not wired here. See the
       # README deployment section.
       - "${BOOPBOX_BROKER_HOST_PORT:-1884}:1883"
     volumes:

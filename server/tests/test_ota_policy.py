@@ -1,4 +1,4 @@
-"""P11: OTA version-check + push policy and the POST /ota/update endpoint.
+"""OTA version-check + push policy and the POST /ota/update endpoint.
 
 Policy unit tests drive OtaPolicy with a real FirmwareCache (over a tmp bin dir)
 and a fake publisher that records send_cmd/send_flash. Endpoint tests use a

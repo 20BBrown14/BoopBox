@@ -29,7 +29,7 @@ async def test_full_read_returns_fixture_bytes():
 
 
 async def test_ranged_read_returns_slice_and_facts():
-    data = bytes(range(256)) * 4  # 1024 bytes, deterministic
+    data = bytes(range(256)) * 4
     src = FakeSource(data=data)
     async with await src.open(ITEM, Range(start=10, end=19)) as stream:
         body = await _read_all(stream)
@@ -97,7 +97,7 @@ async def test_source_unavailable_mode():
     with pytest.raises(SourceError) as exc:
         await src.open(ITEM, None)
     assert exc.value.code is ErrorCode.source_unavailable
-    # Also on the pre-stream duration path P7 uses.
+    # Also on the pre-stream duration path.
     with pytest.raises(SourceError) as exc2:
         await src.duration(ITEM)
     assert exc2.value.code is ErrorCode.source_unavailable
@@ -105,7 +105,7 @@ async def test_source_unavailable_mode():
 
 async def test_unavailable_detail_is_log_only():
     # The error carries a log-only detail; it is not the client message surface.
-    # P6/P3 build the client message from the code alone.
+    # The client message is built from the code alone.
     src = FakeSource(fail_with=ErrorCode.source_unavailable)
     with pytest.raises(SourceError) as exc:
         await src.duration(ITEM)

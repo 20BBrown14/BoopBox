@@ -334,7 +334,7 @@ Layout the admin must follow:
 <firmware_dir>/esp32s3/boopbox-0.2.0.bin   # older versions may be kept for rollback
 ```
 
-- One **chip subfolder** per chip family. MVP supports `esp32s3` (→ `ESP32-S3`);
+- One **chip subfolder** per chip family. Only `esp32s3` (→ `ESP32-S3`) is supported;
   unknown subfolders are skipped.
 - Bin naming: `boopbox-<version>.bin`. The server locates the bin whose version
   matches `ota.manifest_version` in each chip dir.
@@ -414,12 +414,12 @@ device (`revoked` flag) is refused on both immediately, server-side, with no box
 interaction. The two secrets are deliberately distinct so a leak of one (the OTA
 secret is the more log-exposed) cannot authorize the other.
 
-**Provisioning (MVP).** A real provisioning flow lands later. For now the seed
+**Provisioning.** There is no provisioning flow yet. The seed
 device's secrets are supplied via `BOOPBOX_SEED_DEVICE_OTA_SECRET` and
 `BOOPBOX_SEED_DEVICE_API_TOKEN`, hashed onto its row at startup. Generate secrets
 the same way as the stream secret (e.g. `openssl rand -hex 32`).
 
-Transport security (HTTPS/mTLS) is out of scope for the MVP and is expected to be
+Transport security (HTTPS/mTLS) is out of scope for now and is expected to be
 terminated ahead of the server. Keep reverse-proxy and application logs from
 capturing the `Authorization` header, since the OTA secret rides in it.
 
@@ -446,10 +446,10 @@ committed — keep them in `.env`, not `config.yaml`.
 | `BOOPBOX_MQTT_TLS_CA` | empty | Path to a CA bundle when TLS is on. |
 | `BOOPBOX_PUBLIC_BASE_URL` | `http://127.0.0.1:9685` | URL boxes use to reach the server; used verbatim to build signed `/stream` URLs. |
 | `BOOPBOX_SOURCE_<ID>_API_KEY` | empty | **(secret)** API key per source. `<ID>` is the source id uppercased with non-alphanumeric runs replaced by `_` (e.g. `jellyfin-main` → `BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY`). |
-| `BOOPBOX_SEED_DEVICE_ID` | `boop-test` | MVP seed device, upserted at startup. |
+| `BOOPBOX_SEED_DEVICE_ID` | `boop-test` | Seed device, upserted at startup. |
 | `BOOPBOX_SEED_DEVICE_MQTT_PASSWORD` | empty | **(secret)** Provisioned at the broker; never stored in the database. |
-| `BOOPBOX_SEED_DEVICE_OTA_SECRET` | empty | **(secret)** MVP stand-in for provisioning. Hashed onto the seed device row at startup; presented as the HTTP Basic password on the firmware bin fetch. |
-| `BOOPBOX_SEED_DEVICE_API_TOKEN` | empty | **(secret)** MVP stand-in for provisioning. Hashed onto the seed device row at startup; presented as an `Authorization: Bearer` token on device API routes. |
+| `BOOPBOX_SEED_DEVICE_OTA_SECRET` | empty | **(secret)** Stand-in for provisioning. Hashed onto the seed device row at startup; presented as the HTTP Basic password on the firmware bin fetch. |
+| `BOOPBOX_SEED_DEVICE_API_TOKEN` | empty | **(secret)** Stand-in for provisioning. Hashed onto the seed device row at startup; presented as an `Authorization: Bearer` token on device API routes. |
 
 The `BOOPBOX_MQTT_*` variables are live runtime config: the server opens an MQTT
 connection to the broker at startup and subscribes to `boopbox/+/boop`, so the
