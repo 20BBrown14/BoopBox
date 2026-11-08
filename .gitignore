@@ -9,3 +9,33 @@ _autosave-*
 # Audio test files: the generated clips are committed; anything else dropped in
 # here (personal music) stays local. Use `git add -f` to deliberately add one.
 test-audio/
+
+# Server
+server/app-data/
+
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# SQLite (and WAL sidecars)
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env
+
+# Broker credentials (real password_file is hashed secrets; keep only the sample)
+server/mosquitto/password_file
+
+# Bundled-broker runtime data
+server/mosquitto-data/
+
+server/config.yaml

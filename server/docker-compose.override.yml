@@ -1,0 +1,15 @@
+# Dev-only overrides, merged automatically by `docker compose up`. Mounts the
+# source so host edits reach the container and swaps in uvicorn --reload.
+services:
+  app:
+    volumes:
+      - ./app:/app/app
+    command:
+      - uvicorn
+      - app.main:create_app
+      - --factory
+      - --reload
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "9685"

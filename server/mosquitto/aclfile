@@ -1,0 +1,41 @@
+# BoopBox broker ACLs. ACLs live entirely here, never in the app.
+#
+# Account model:
+#   - One server account (username below; replace the placeholder to match the
+#     account you create with mosquitto_passwd and BOOPBOX_MQTT_USERNAME).
+#   - One account per box, whose username IS its device id (%u). A box named
+#     "boop-test" authenticates as user "boop-test".
+#
+# Topic contract (must match app/mqtt/publish.py + app/mqtt/service.py):
+#   box  pub : boopbox/<id>/boop, boopbox/<id>/version
+#   box  sub : boopbox/<id>/{play,error,cmd}, boopbox/all/cmd (read-only)
+#   srv  pub : boopbox/<id>/{play,error,cmd}, boopbox/all/cmd
+#   srv  sub : boopbox/+/boop, boopbox/+/version
+
+# --- Server account ---------------------------------------------------------
+# Replace "boopbox-server" with the real server username (BOOPBOX_MQTT_USERNAME).
+# Broad read/write across the whole tree: it talks to every device and owns the
+# broadcast publish.
+user boopbox-server
+topic readwrite boopbox/#
+
+# --- Per-device boxes -------------------------------------------------------
+# A box is confined to its own subtree boopbox/%u/#. Split by direction so a box
+# can only publish its own boop/version and only read its own play/error/cmd.
+# The publish restriction is the security priority: without it a leaked box
+# credential could inject commands to other devices or the cmd channel.
+pattern write boopbox/%u/boop
+pattern write boopbox/%u/version
+pattern read boopbox/%u/play
+pattern read boopbox/%u/error
+pattern read boopbox/%u/cmd
+
+# --- Broadcast exception ----------------------------------------------------
+# boopbox/all/cmd sits outside every box's boopbox/<id>/# subtree, so it needs
+# an explicit rule: any box may SUBSCRIBE (read) it; only the server account
+# (above, via boopbox/#) may PUBLISH there.
+#
+# This pattern is intentionally fixed (no %u): it grants read to every
+# authenticated pattern client. Mosquitto logs a "does not contain '%c' or
+# '%u'" warning for it — expected and benign, not a misconfiguration.
+pattern read boopbox/all/cmd
