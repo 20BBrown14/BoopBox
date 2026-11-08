@@ -74,100 +74,54 @@ firmware one — flagged here so it isn't lost.
 - **Known issue: mono MP3 doesn't play** on ESPHome 2026.6.5. The decoder reads the header, then the pipeline goes back to idle without starting the speaker, and nothing is logged as an error. Matters for audiobooks/podcasts. Workarounds: transcode to stereo on the server, or fix upstream.
 - When test-serving from a dev machine, its host firewall must allow the box in (k2so drops inbound by default).
 
-## UI: capacitive buttons, LED ring, power switch (planning, 2026-11-07)
+## UI: capacitive buttons, LED ring, power switch (2026-11-07)
 Direction: capacitive touch buttons (no moving parts, less 3D modelling), an LED ring for visual output, a short click sound as touch feedback, and a physical power switch.
+
+### Status (2026-11-08)
+Breadboard touch bring-up is done. All three pads detect touches and drive the player (`firmware/BoopBox_v0.1.0.yaml`, threshold 5000, `setup_mode` off). Tuning is **parked** until there are copper-tape pads on a printed test panel with tidy wiring, because numbers from bare jumper leads don't carry over. **Known issue:** with the current build, pads can latch ON during audio playback (see the finding below) and toggle play or volume on their own.
 
 ### Pin plan
 | Function | Feather | GPIO | Notes |
 |---|---|---|---|
-| Vol − (touch) | D5 | 5 | T5 |
-| Play/Pause (touch) | D6 | 6 | T6 |
-| Vol + (touch) | A4 | 14 | T14 |
+| Vol + (touch) | D5 | 5 | T5 |
+| Vol − (touch) | D6 | 6 | T6 |
+| Play/Pause (touch) | A4 | 14 | T14 |
 | Spare touch | A5 | 8 | T8 |
 | LED ring data | A0 | 18 | not a touch pin; through a 74AHCT125 level shifter (3.3V → 5V) |
 
-- Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 9–11 (I2S) and 12 (amp SD) are already taken. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
+- Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 7 (I2C power), 9–11 (I2S) and 12 (amp SD) are already taken. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
 - Three buttons fit on native touch, so no MPR121 is needed. If more controls are added later, the MPR121 (STEMMA QT) is the fallback.
 
-### Touch wiring
-- Pad (copper tape for prototyping) → short wire → **510 Ω series resistor next to the GPIO** → touch pin. No pull-ups, and don't connect the pad to ground.
-- Espressif guidance (touch sensor design note): round pads 8–15 mm (12 mm typical; bigger for thicker overlays). More than 5 mm between buttons. Plastic overlay ≤ 3 mm with no air gap between pad and overlay. Nothing conductive or metal-flake. Leads as short as possible (< 300 mm). Keep away from I2C/I2S/PWM, the LED data line (≥ 4 mm) and RF (the NFC antenna).
-- ESPHome `esp32_touch`: on the S3, values go **up** when touched. Use `setup_mode: true` to log raw values and set each threshold between the idle and touched readings. For S2/S3 the docs use `measurement_duration: 0.25ms` and `sleep_duration: 0.5ms`.
-
-### LED ring
-- NeoPixel ring on 5V, with a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
-- Cap brightness in firmware: full white can draw about 1 A from a 16-LED ring, and the ring shares USB 5V with the amp. NeoPixels draw about 1 mA per LED even when dark.
-
-### Power switch
-- **EN only kills the 3.3V regulator.** The amp (VIN from USB/BAT) and the LED ring stay powered. That's fine for the prototype. The battery build needs the switch to cut the battery, or to drive a load switch that also cuts the amp and ring.
-
-### Parts ordered (2026-11-07)
-- Digi-Key: NeoPixel ring, 74AHCT125, 1000 µF caps, 330–470 Ω resistors, SPDT slide switches, Adafruit 2011 LiPo (3.7 V 2 Ah, JST-PH), bypass caps.
-- Amazon: copper foil tape (conductive adhesive), KWS-2303C USB-C power meter.
-- Skipped: the STEMMA QT cable (the PN532 is wired directly).
-- Still need: 510 Ω resistors for the touch pads, if not already in stock.
-
-### Open items
-- Power switch design for the battery build (see above).
-- LED ring size and placement. If it goes around the NFC tap zone, check read range with the ring mounted.
-- Touch pad placement: away from the tap zone, at a panel thickness that works.
-- Click sound: an embedded WAV in flash, played over the music (announcement pipeline, ducking).
-- Tests: touch calibration on USB vs battery, with the PN532 polling and audio playing. NFC range with pads and ring mounted. USB current (KWS meter). Reliability of the level-shifted LED data. Whether the KWS meter passes USB data. Battery fit in the enclosure.
-
-### References
-- [Espressif touch sensor design guide](https://github.com/espressif/esp-iot-solution/blob/release/v1.0/documents/touch_pad_solution/touch_sensor_design_en.md)
-- [ESP32-S3 hardware design guidelines (touch section)](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/esp-hardware-design-guidelines-en-master-esp32s3.pdf)
-- [ESP-IDF touch sensor API (ESP32-S3)](https://docs.espressif.com/projects/esp-idf/en/v5.0.7/esp32s3/api-reference/peripherals/touch_pad.html)
-- [ESPHome esp32_touch](https://esphome.io/components/binary_sensor/esp32_touch/)
-- [Adafruit Feather ESP32-S3 pinouts](https://learn.adafruit.com/adafruit-esp32-s3-feather/pinouts)
-
-## UI plan (2026-11-07)
-- **Inputs:** 3 capacitive touch buttons, using the ESP32-S3's native touch peripheral (no MPR121 needed for 3 buttons). Chosen for no moving parts and less 3D modelling.
-- **Feedback:** short click sound on each press, stored in flash and played via the media player's announcement pipeline so it ducks over music instead of stopping it. Plus an LED ring for visual output (e.g. show the volume level briefly after vol± presses).
-- **Power:** physical power switch.
-
-### Pin plan
-| Function | Feather | GPIO | Notes |
-|---|---|---|---|
-| Touch: vol+ | D5 | GPIO5 | touch ch 5 |
-| Touch: vol− | D6 | GPIO6 | touch ch 6 |
-| Touch: play/pause | A4 | GPIO14 | touch ch 14 |
-| Touch: spare | A5 | GPIO8 | touch ch 8 |
-| LED ring data | A0 | GPIO18 | not a touch pin; via 74AHCT125 to 5V |
-
-Avoid GPIO13 (red LED on it). GPIO3/4 (I2C), 7 (I2C power) and 9–12 (I2S + amp SD) are already taken.
-
-### Parts ordered (2026-11-07)
-- NeoPixel ring, 74AHCT125 level shifter, 1000 µF cap + 330–470 Ω series resistor for the ring
-- SPDT slide switches (power)
-- Adafruit 2011 LiPo, 3.7 V 2000 mAh (JST-PH). Check that it fits the enclosure. The Feather charges it slowly.
-- KWS-2303C USB-C inline power meter (Amazon). Reads whole-box draw on USB only; too coarse for sleep current. Data passthrough unverified.
-- Copper foil tape with conductive adhesive (Amazon) for prototype pads
-- Skipped the STEMMA QT → female-socket cable; PN532 stays hand-wired.
-
-### Capacitive touch design rules
-From the Espressif touch sensor design note (written for the original ESP32, but the electrode/layout rules apply to the S3 too):
-- **Electrode:** round is best, 8–15 mm (12 mm typical); bigger for thicker overlays. More than 5 mm between buttons.
-- **Overlay:** at most 3 mm of plastic, no air gap between pad and overlay (stick the tape directly to the wall). Dielectric 2–8 is fine (acrylic ≈2.8, PC ≈3). No metallic paints or metal/carbon-filled filament.
-- **Trace:** keep it short (at most 300 mm absolute; shorter is better). Put a 510 Ω series resistor (range 470 Ω–2 kΩ) within ~1 mm of the touch pin.
-- **Ground:** use hatched ground (not solid) around pads, at least 1 mm away from them; keep solid ground at least 10 mm away.
-- **Neighbours:** keep LED lines at least 4 mm from touch traces. Cross I2C/SPI at right angles. Keep traces away from RF antennas (Wi-Fi and the PN532 antenna).
-- **Noise:** Wi-Fi TX adds noise, so calibrate thresholds with Wi-Fi up. Targets: sensitivity above 3%, SNR above 5:1. Water and drool cause false triggers: debounce, and consider ESPHome's `waterproof_guard_ring` option.
+### Touch wiring and pad design
+- Pad (copper tape for prototyping) → short wire → **510 Ω series resistor within ~1 mm of the GPIO** (470 Ω–2 kΩ range) → touch pin. No pull-ups, and don't connect the pad to ground.
+- Rules from the Espressif touch sensor design note (written for the original ESP32, but the electrode and layout rules apply to the S3 too):
+  - **Electrode:** round is best, 8–15 mm (12 mm typical), bigger for thicker overlays. More than 5 mm between buttons.
+  - **Overlay:** at most 3 mm of plastic, with no air gap between pad and overlay (stick the tape directly to the wall). A dielectric constant of 2–8 is fine (acrylic ≈2.8, PC ≈3). No metallic paints and no metal- or carbon-filled filament.
+  - **Trace:** as short as possible (300 mm absolute max).
+  - **Ground:** hatched, not solid, at least 1 mm from pads. Keep solid ground at least 10 mm away.
+  - **Neighbours:** keep the LED data line at least 4 mm away. Cross I2C/SPI at right angles. Keep clear of RF: Wi-Fi and the PN532 antenna (this also protects NFC read range).
+  - **Noise:** Wi-Fi TX adds noise, so calibrate with Wi-Fi up. Targets: sensitivity above 3%, SNR above 5:1. Water and drool cause false triggers, so debounce and consider ESPHome's `waterproof_guard_ring`.
 
 ### ESPHome touch config (S3)
-On S2/S3 the raw value **rises** on touch. The default 8 ms measurement is too long for the S3.
+- On S2/S3 the raw value **rises** on touch. The default 8 ms measurement is too long for the S3: use `measurement_duration: 0.25ms` and `sleep_duration: 0.5ms`.
+- **`threshold` is a delta, not an absolute value** (ESPHome 2026.10, checked in `esp32_touch.cpp`):
+  - On S2/S3, a touch is detected in hardware when `smooth − benchmark > threshold`.
+  - The hardware's `benchmark` tracks the untouched baseline by itself, from boot and through drift, so there's no need for boot calibration.
+  - The benchmark **freezes while a pad reads as touched**.
+  - `threshold` is only written when the channel is created, so a runtime `set_threshold()` has no effect.
+- Calibrate with `setup_mode: true`: it logs `difference=` for each pad about 4×/s. Set each threshold to about 50–70% of the touched difference, then turn setup mode off.
+- To condense the logs, pipe `esphome logs` through a one-line-per-second summary of the max `difference` per pad. (The script used on 2026-11-07 was a throwaway; recreate it if needed.)
 
-**`threshold` is a delta, not an absolute value** (ESPHome 2026.10, checked in `esp32_touch.cpp`). On S2/S3 a touch is detected in hardware when `smooth − benchmark > threshold`. The hardware's `benchmark` tracks the untouched baseline on its own, from boot and through drift, so baseline calibration is already handled. `threshold` is only written to the hardware when the channel is created. Calling `set_threshold()` at runtime has no effect without recreating the channel. Pick it from the `difference=` values that `setup_mode` logs, at roughly 50–70% of the touched difference.
 ```yaml
 esp32_touch:
-  setup_mode: true            # log raw values to pick thresholds; set false after
+  setup_mode: true            # log differences to pick thresholds; set false after
   measurement_duration: 0.25ms
   sleep_duration: 0.5ms
 binary_sensor:
   - platform: esp32_touch
-    name: "Play/Pause"
+    name: "Touch Play Pause"  # no "/" in names: ESPHome reserves it (error from 2027.7)
     pin: GPIO14
-    threshold: 1000           # placeholder delta: ~50-70% of the touched `difference` from setup_mode
+    threshold: 5000           # delta: ~50-70% of the touched `difference`
 ```
 
 ### Breadboard calibration (2026-11-07)
@@ -184,21 +138,57 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
 - After a long press, `difference` can swing negative on release (the benchmark lags). This is harmless for detection.
 
 ### Finding: audio playback shifts the touch readings (2026-11-07)
-With threshold 5000, play/pause latched ON while music played with no finger on it. When the music stopped, play/pause dropped to OFF and vol down latched ON. So the amp or speaker is shifting the untouched readings by more than 5000. The baseline adapts while the music plays, and stopping it is a step change. The pad's baseline stops updating while it reads as touched, so a shift past the threshold stays latched.
-Suspects: supply ripple or ground bounce from the class-D amp on the shared USB 5V (the Espressif note says to power the ESP from a regulator not shared with high-current loads), or the amp's switching outputs and speaker wires coupling into the bare touch leads.
-Mitigations to try: route touch leads away from the amp and speaker wires; twist the speaker pair; make sure the 1000 µF cap is at the amp VIN; enable the S3 hardware denoise channel (`denoise_grade` / `denoise_cap_level`), which is designed to reject supply noise; raise the threshold (a touch on bare metal is 150k+).
+- **What happened:** with threshold 5000, play/pause latched ON while music played, with no finger on it. When the music stopped, play/pause dropped to OFF and vol down latched ON.
+- **What that means:**
+  - The amp/speaker shifts the untouched readings by more than 5000.
+  - The baseline adapts while music plays, so stopping the music is a step change.
+  - The benchmark freezes once a pad reads as touched, so any shift past the threshold stays latched.
+- **Suspects:**
+  - Supply ripple or ground bounce from the class-D amp on the shared USB 5V. The Espressif note says to power the ESP from a regulator not shared with high-current loads.
+  - The amp's switching outputs and speaker wires coupling into the bare touch leads.
+  - The PN532's I2C wires and antenna near the leads are a lesser concern. They would show up as brief spikes every 500 ms (the poll interval), not a lasting shift.
+- **Mitigations to try:**
+  - Route touch leads away from the amp, speaker and PN532, crossing other wires at right angles.
+  - Twist the speaker pair. It's bridge-tied: never ground either wire.
+  - Confirm the 1000 µF cap is right at the amp VIN.
+  - Enable the S3 hardware denoise channel (`denoise_grade` / `denoise_cap_level`), which is built to reject shared supply noise.
+  - Raise the threshold.
+- **Next measurement:** with real pads, run `setup_mode` untouched with music playing vs stopped to size the shift.
 
-### Open items / to test
-- Power switch design: the EN pin only cuts 3.3 V; the amp and ring stay on USB/BAT. The battery build needs a switch in the battery line or a load switch.
-- Ring size (12 vs 16) and placement. If it goes around the tap zone, check NFC read range with it mounted.
-- Pad placement away from the NFC tap zone; check read range with pads mounted.
-- Touch calibration on USB vs battery, with the PN532 polling and audio playing.
-- USB current budget: LED brightness cap (`max_brightness`) plus amp peaks.
-- Click-sound clip size vs 4 MB flash.
+### LED ring
+- NeoPixel ring on 5V, with a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
+- Cap brightness in firmware (`max_brightness`): full white can draw about 1 A from a 16-LED ring, and the ring shares USB 5V with the amp. NeoPixels draw about 1 mA per LED even when dark.
+- Idea: briefly show the volume level on the ring after vol± presses.
+
+### Feedback sound
+- A short WAV embedded in flash (no network latency), played through the media player's announcement pipeline so it ducks over the music instead of stopping it. Keep it tiny: flash is 4 MB.
+
+### Power switch
+- **EN only kills the 3.3V regulator.** The amp (VIN from USB/BAT) and the LED ring stay powered. That's fine for the prototype. The battery build needs the switch to cut the battery, or to drive a load switch that also cuts the amp and ring.
+
+### Parts ordered (2026-11-07)
+- Digi-Key:
+  - NeoPixel ring, 74AHCT125, 1000 µF caps, 330–470 Ω resistors, SPDT slide switches, bypass caps.
+  - Adafruit 2011 LiPo (3.7 V 2 Ah, JST-PH). Check that it fits the enclosure. The Feather charges it slowly.
+- Amazon:
+  - Copper foil tape (conductive adhesive).
+  - KWS-2303C USB-C power meter. It reads the whole box's draw on USB only, is too coarse for sleep current, and data passthrough is unverified.
+- Skipped: the STEMMA QT cable (the PN532 is wired directly).
+- Still need: 510 Ω resistors for the touch pads, if not already in stock.
+
+### Open items
+- Touch: recalibrate with real pads behind a printed panel, on USB and on battery, with the PN532 polling and audio playing vs stopped. Then set thresholds and try denoise (see the finding above).
+- Touch UX: auto-repeat while vol± is held. Check whether play/pause double-fires (once seen as PLAYING → PAUSED 0.5 s apart). If it does, use `on_click` with min/max length or a longer debounce.
+- Power switch design for the battery build (see above).
+- LED ring size (12 vs 16) and placement. If it goes around the NFC tap zone, check read range with the ring mounted.
+- Touch pad placement: away from the tap zone, at a panel thickness that works. Check NFC read range with pads mounted.
+- Click sound clip.
+- Other tests: USB current budget (KWS meter: LED cap + amp peaks), reliability of the level-shifted LED data, whether the KWS meter passes USB data, battery fit.
 
 ### References
-- Espressif touch sensor design note: https://github.com/espressif/esp-iot-solution/blob/release/v1.0/documents/touch_pad_solution/touch_sensor_design_en.md
-- ESP-IDF touch sensor API (ESP32-S3): https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-reference/peripherals/touch_pad.html
-- ESPHome esp32_touch: https://esphome.io/components/binary_sensor/esp32_touch/
-- Adafruit ESP32-S3 Feather guide: https://learn.adafruit.com/adafruit-esp32-s3-feather (its pinouts page describes the 8 MB/no-PSRAM board; check its mapping against the table below)
-- Pin → GPIO table for the 4 MB/2 MB board: https://www.espboards.dev/esp32/adafruit-feather-esp32s3/
+- [Espressif touch sensor design guide](https://github.com/espressif/esp-iot-solution/blob/release/v1.0/documents/touch_pad_solution/touch_sensor_design_en.md)
+- [ESP32-S3 hardware design guidelines (touch section)](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/esp-hardware-design-guidelines-en-master-esp32s3.pdf)
+- [ESP-IDF touch sensor API (ESP32-S3)](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-reference/peripherals/touch_pad.html)
+- [ESPHome esp32_touch](https://esphome.io/components/binary_sensor/esp32_touch/)
+- [Adafruit Feather ESP32-S3 pinouts](https://learn.adafruit.com/adafruit-esp32-s3-feather/pinouts). This describes the 8 MB/no-PSRAM board, so check it against the table below.
+- [Pin → GPIO table for the 4 MB/2 MB board](https://www.espboards.dev/esp32/adafruit-feather-esp32s3/)
