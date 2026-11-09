@@ -24,9 +24,10 @@ substitutions:
   i2s_bclk_pin: GPIO9
   i2s_lrclk_pin: GPIO10
   i2s_dout_pin: GPIO11
-  play_pause_button_pin: GPIO5
-  volume_down_button_pin: GPIO6
-  volume_up_button_pin: GPIO13
+  # Capacitive touch pads (ESP32-S3 native touch; GPIO1-14 are touch-capable).
+  touch_vol_up_pin: GPIO5      # Feather D5
+  touch_vol_down_pin: GPIO6    # Feather D6
+  touch_play_pin: GPIO14       # Feather A4
   # A0 on the Feather ESP32-S3 = GPIO18. NeoPixel ring data line.
   led_ring_pin: GPIO18
 
@@ -66,9 +67,15 @@ web_server:
     - id: grp_nfc
       name: "NFC"
       sorting_weight: 10
+    - id: grp_boop
+      name: "Boop"
+      sorting_weight: 15
     - id: grp_audio_test
       name: "Audio Test"
       sorting_weight: 20
+    - id: grp_controls
+      name: "Controls"
+      sorting_weight: 25
     - id: grp_led
       name: "LED Color"
       sorting_weight: 30
@@ -135,10 +142,23 @@ mqtt:
             const char *slug = x.containsKey("boop") && x["boop"].containsKey("slug")
                                  ? x["boop"]["slug"].as<const char *>() : "?";
             ESP_LOGI("boopbox", "play slug='%s' url=%s", slug, url.c_str());
+            id(boop_status).publish_state(std::string("playing ") + slug);
             id(boop_player)
                 ->make_call()
                 .set_media_url(url)
                 .perform();
+    # error — server → boopbox/<id>/error. A boop could not be answered. Branch
+    # on `code`; `message` is generic display text. `boop` may be null for
+    # unsupported_version.
+    - topic: boopbox/${device_id}/error
+      then:
+        - lambda: |-
+            std::string code = x.containsKey("code")
+                                 ? x["code"].as<std::string>() : "unknown";
+            const char *slug = x.containsKey("boop") && x["boop"].containsKey("slug")
+                                 ? x["boop"]["slug"].as<const char *>() : "?";
+            ESP_LOGW("boopbox", "boop error slug='%s' code=%s", slug, code.c_str());
+            id(boop_status).publish_state("error: " + code + " (" + slug + ")");
 
     # error — server → boopbox/<id>/error. A boop could not be answered. Branch
     # on `code`, not `message` (per the contract).
@@ -237,6 +257,17 @@ i2c:
   frequency: 100kHz
   id: bus_a
 
+# Native touch hub. On S2/S3 the hardware tracks each pad's untouched baseline
+# ("benchmark") itself; a pad reads touched when smooth - benchmark > threshold,
+# so each sensor's threshold is a delta, not an absolute reading. setup_mode
+# logs value/benchmark/difference ~1/s for calibration: set each threshold to
+# ~50-70% of the touched difference, then turn setup_mode off (it costs CPU).
+# Default 8ms measurement is too long for the S3.
+esp32_touch:
+  setup_mode: false
+  measurement_duration: 0.25ms
+  sleep_duration: 0.5ms
+
 text_sensor:
   - platform: template
     name: "Last NFC UID"
@@ -252,6 +283,14 @@ text_sensor:
       sorting_group_id: grp_nfc
       sorting_weight: 30
     icon: mdi:card-text-outline
+  # Outcome of the latest boop as the box saw it: sent, playing, error, or not sent.
+  - platform: template
+    name: "Last Boop Result"
+    id: boop_status
+    web_server:
+      sorting_group_id: grp_boop
+      sorting_weight: 30
+    icon: mdi:message-reply-text-outline
 
 binary_sensor:
   - platform: template
@@ -262,21 +301,59 @@ binary_sensor:
       sorting_weight: 10
     icon: mdi:nfc-tap
 
-  # Physical play/pause button: active-low to GND via the internal pullup, so
-  # inverted makes a press read as true. Each press toggles play<->pause and is
-  # ignored when nothing is playing or paused (idle/announcing).
-  - platform: gpio
-    id: play_pause_button
-    internal: true
-    pin:
-      number: ${play_pause_button_pin}
-      mode:
-        input: true
-        pullup: true
-      inverted: true
+  # Capacitive transport controls. Thresholds are BREADBOARD values (bare
+  # metal lead tips, 2026-11-07): idle |diff| < ~200, hand hovering near a lead
+  # ~800-1900, direct touch 150k-420k. Recalibrate behind the real panel; a
+  # touch through plastic will be far smaller. The delayed_on/off filters debounce
+  # brief noise spikes. They act on boop_player like the web UI buttons do.
+  - platform: esp32_touch
+    name: "Touch Vol Up"
+    id: touch_vol_up
+    pin: ${touch_vol_up_pin}
+    threshold: 5000
+    web_server:
+      sorting_group_id: grp_controls
+      sorting_weight: 10
+    icon: mdi:volume-plus
     filters:
-      - delayed_on: 20ms
+      - delayed_on: 30ms
+      - delayed_off: 30ms
     on_press:
+      - logger.log: "touch: vol up"
+      - media_player.volume_up: boop_player
+
+  - platform: esp32_touch
+    name: "Touch Vol Down"
+    id: touch_vol_down
+    pin: ${touch_vol_down_pin}
+    threshold: 5000
+    web_server:
+      sorting_group_id: grp_controls
+      sorting_weight: 20
+    icon: mdi:volume-minus
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - logger.log: "touch: vol down"
+      - media_player.volume_down: boop_player
+
+  - platform: esp32_touch
+    name: "Touch Play Pause"
+    id: touch_play
+    pin: ${touch_play_pin}
+    threshold: 5000
+    web_server:
+      sorting_group_id: grp_controls
+      sorting_weight: 30
+    icon: mdi:play-pause
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - logger.log: "touch: play/pause"
+      # Toggle play<->pause; ignored when nothing is playing or paused
+      # (idle/announcing), so a stray touch can't start playback from idle.
       - if:
           condition:
             media_player.is_playing:
@@ -291,38 +368,6 @@ binary_sensor:
                   - media_player.play:
                       id: boop_player
 
-  # Volume buttons: each press steps by the player's volume_increment (5%),
-  # clamped to volume_max in firmware. Same active-low + internal pullup wiring.
-  - platform: gpio
-    id: volume_down_button
-    internal: true
-    pin:
-      number: ${volume_down_button_pin}
-      mode:
-        input: true
-        pullup: true
-      inverted: true
-    filters:
-      - delayed_on: 20ms
-    on_press:
-      - media_player.volume_down:
-          id: boop_player
-
-  - platform: gpio
-    id: volume_up_button
-    internal: true
-    pin:
-      number: ${volume_up_button_pin}
-      mode:
-        input: true
-        pullup: true
-      inverted: true
-    filters:
-      - delayed_on: 20ms
-    on_press:
-      - media_player.volume_up:
-          id: boop_player
-
 # Write staged payload to the next NDEF-capable tag tapped (NTAG21x/Ultralight).
 text:
   - platform: template
@@ -334,6 +379,18 @@ text:
     optimistic: true
     mode: text
     initial_value: "boop/zelda"
+
+  # Slug sent by Simulate Tag Read, exactly as if a tag carrying it were tapped.
+  - platform: template
+    name: "Simulate Slug"
+    id: simulate_slug
+    web_server:
+      sorting_group_id: grp_boop
+      sorting_weight: 10
+    optimistic: true
+    mode: text
+    restore_value: true
+    initial_value: "boop/example"
 
   # Audio bring-up: any MP3/FLAC/WAV URL reachable from the box, e.g. a file
   # served with `python -m http.server` on your machine.
@@ -434,6 +491,22 @@ number:
     restore_value: true
     initial_value: 255
 
+# Shows the player's real mute state. The mute is saved across reboots and isn't
+# otherwise visible on this page.
+switch:
+  - platform: template
+    name: "Mute"
+    id: mute_switch
+    icon: mdi:volume-off
+    web_server:
+      sorting_group_id: grp_audio_test
+      sorting_weight: 17
+    lambda: 'return id(boop_player).is_muted();'
+    turn_on_action:
+      - media_player.mute: boop_player
+    turn_off_action:
+      - media_player.unmute: boop_player
+
 button:
   - platform: template
     name: "Write Tag"
@@ -454,6 +527,17 @@ button:
             not:
               pn532.is_writing:
         - logger.log: "Finished writing tag"
+
+  # Boop without a physical tag: goes through the same publish path as a tap.
+  - platform: template
+    name: "Simulate Tag Read"
+    id: simulate_tag_read_button
+    web_server:
+      sorting_group_id: grp_boop
+      sorting_weight: 20
+    icon: mdi:nfc-search-variant
+    on_press:
+      - lambda: 'id(publish_boop)->execute(id(simulate_slug).state, "simulated");'
 
   - platform: template
     name: "Play Test Audio"
@@ -615,6 +699,7 @@ script:
           if (!id(mqtt_client).is_connected()) {
             ESP_LOGW("boopbox", "MQTT not connected; dropping boop for '%s'",
                      slug.c_str());
+            id(boop_status).publish_state("not sent (MQTT offline): " + slug);
             return;
           }
           // Short random correlation id, echoed back in the play/error reply.
@@ -634,15 +719,16 @@ script:
             });
           ESP_LOGI("boopbox", "Published boop id=%s slug='%s'",
                    id_str.c_str(), slug.c_str());
+          id(boop_status).publish_state("sent " + slug);
 
 i2s_audio:
   - id: i2s_out
     i2s_bclk_pin: ${i2s_bclk_pin}
     i2s_lrclk_pin: ${i2s_lrclk_pin}
 
-# MAX98357A: GAIN floating (9 dB). SD pulled to VIN (1M) = Left-channel-only.
-# One physical driver, so mono: the same samples go to both I2S slots, and the
-# amp takes the left one.
+# MAX98357A: GAIN to GND (12 dB), SD floating = (L+R)/2 mix. One physical
+# driver, so mono: the same samples go to both I2S slots, and the amp's L+R mix
+# plays them at full level. Wiring: notes/breadboard-mono-connections.md.
 speaker:
   - platform: i2s_audio
     id: boop_speaker
