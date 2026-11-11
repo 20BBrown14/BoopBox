@@ -268,6 +268,27 @@ esp32_touch:
   measurement_duration: 0.25ms
   sleep_duration: 0.5ms
 
+# Battery fuel gauge: the Feather ESP32-S3 has a MAX17048 at I2C 0x36 on the
+# STEMMA QT bus (GPIO7-powered). ESPHome's max17043 driver covers the MAX17048.
+sensor:
+  - platform: max17043
+    i2c_id: bus_a
+    update_interval: 60s
+    battery_level:
+      name: "Battery"
+      id: battery_level
+      accuracy_decimals: 0
+      web_server:
+        sorting_group_id: grp_device
+        sorting_weight: 1
+    battery_voltage:
+      name: "Battery Voltage"
+      id: battery_voltage
+      accuracy_decimals: 2
+      web_server:
+        sorting_group_id: grp_device
+        sorting_weight: 2
+
 text_sensor:
   - platform: template
     name: "Last NFC UID"

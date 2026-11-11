@@ -18,7 +18,7 @@ Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in 
 | BCLK | D9 / GPIO9 | |
 | LRC | D10 / GPIO10 | |
 | DIN | D11 / GPIO11 | |
-| VIN | USB (5V) | 1000uF across VIN/GND right at the amp |
+| VIN | BAT (3.7–4.2V) | 1000uF across VIN/GND right at the amp. Was USB 5V; moved to BAT 2026-11-10 for battery operation |
 | GND | GND | |
 | GAIN | GND | GND = 12 dB (floating = 9 dB was too quiet) |
 | SD | — | floating = (L+R)/2 mono; GPIO12 reserved for mute/sleep later |
@@ -64,9 +64,53 @@ Both the amp and the ring hang off the 5V rail, so size the supply for the sum:
 
 ### Battery build (open)
 WS2812B wants 5V, but the battery build runs off BAT (3.7–4.2V) with the USB pin
-dead. The ring (and ideally the amp) then needs a **5V boost converter** sized for
-the combined current above. This is an unresolved power-path decision, not a
-firmware one — flagged here so it isn't lost.
+dead. This is a power-path decision, not a firmware one.
+
+**First unplug test (2026-11-10):**
+- With music playing, USB-C was unplugged and the box ran on the Adafruit 2011 LiPo.
+- The ESP32 stayed up, and the player still reported playing.
+- There was **no sound**: amp VIN is on USB.
+- The **PN532's LED went out** and tag reads failed in the log. Its VCC was on USB too.
+- The ring is on USB as well, so it loses power the same way.
+
+**Battery test after rewiring (2026-11-10): passed.**
+- Amp VIN moved to **BAT** and PN532 VCC moved to **3V**.
+- On battery alone, a full NFC read and music playback both worked.
+- Still open: the ring (boost converter) and how much quieter the amp is on BAT.
+
+**Plan:**
+
+| Part | Battery power | New parts |
+|---|---|---|
+| Amp (MAX98357A) | VIN from USB → **BAT** (done). It runs on 2.5–5.5V, at about 1.5–2 W instead of 2.5 W at 5V. | None |
+| PN532 | VCC → Feather **3V** (done). The module takes 3.3V or 5V. | None |
+| LED ring | **5V boost converter** fed from BAT | Boost module |
+
+- Keep the amp **off** the boost rail. Amp plus ring through the boost would draw more than 2 A from the cell at low charge, which is past its rating.
+- With USB plugged in, the amp on BAT draws through the cell and the Feather's charger. That's fine for the prototype, but loud playback slows charging.
+
+**Protection:**
+- The Adafruit 2011 cell (3.7 V, 2 Ah, JST-PH) has a built-in protection circuit for over-discharge, overcurrent and short circuit.
+- Its connector polarity matches the Feather, so no extra protection is needed.
+- It's rated for about 1C (2 A continuous). The amp (about 0.7 A peak) plus a ring at capped brightness fits under that.
+- The Feather charger stops at 4.2V. Don't add a second charger.
+- Optional firmware low-battery shutdown: the MAX17048 fuel gauge is now in `BoopBox_v0.1.0.yaml`. Stopping audio and going to deep sleep below about 3.4V or 5% is gentler on the cell than the protection circuit's hard cutoff.
+
+**Boost converter (ring only):**
+
+| Spec | Target |
+|---|---|
+| Input | Works down to about 3.0V |
+| Output | Fixed 5V, at least 1 A continuous |
+| Efficiency | Synchronous, 85% or better. 1 A out at 3.5V in draws about 1.6 A from the cell. |
+| Enable pin | Logic-level EN, driven from a GPIO to power the ring off when idle or asleep. The ring draws about 1 mA per LED even when dark. |
+| Load disconnect | Required. Many boosts pass about VIN to the output when disabled, which leaves the ring half-powered. |
+| Quiescent current | µA when disabled |
+| Layout | Shielded inductor if possible. Keep it away from the touch pads and the PN532 antenna. |
+
+- **Avoid:** MT3608 and other cheap adjustable modules (no real shutdown, the trimmer can drift above 5V, noisy). Also avoid boost boards that charge the battery (such as the PowerBoost 1000C), because the Feather already charges it.
+- **Candidate:** Adafruit PowerBoost 1000 Basic, the version without a charger. It's based on the TI TPS61030, has an EN pin and disconnects the load in shutdown. Check the datasheet when ordering.
+- **Wiring:** BAT → boost VIN, GND → GND, boost 5V → ring VCC (keep the 1000 µF cap), boost EN → a free GPIO (to be chosen). The level shifter on the data line stays.
 
 ### Bring-up status (2026-10-17)
 - First sound confirmed: Feather + MAX98357A + 4Ω speaker on USB power, streaming over Wi-Fi from a local HTTP server. The start of playback isn't clipped (a 3-beep test file plays all three beeps).
@@ -93,6 +137,11 @@ Breadboard touch bring-up is done. All three pads detect touches and drive the p
 - Three buttons fit on native touch, so no MPR121 is needed. If more controls are added later, the MPR121 (STEMMA QT) is the fallback.
 
 ### Touch wiring and pad design
+- **Decision (2026-11-10):**
+  - Pads are **round copper tape, about 2 cm in diameter**.
+  - Each pad is bonded directly behind a **1 mm thick section** of the PETG wall. The rest of the enclosure can be thicker, with the wall thinned to 1 mm only at the buttons.
+  - Basis: 1 mm gave about 15–18% sensitivity, far above Espressif's 3% minimum. 5 mm sat at about 3.5%, right at the limit (see the panel test below).
+  - Shape: the circle beat the square, which agrees with Espressif's "round is best", but that comparison wasn't controlled.
 - Pad (copper tape for prototyping) → short wire → **510 Ω series resistor within ~1 mm of the GPIO** (470 Ω–2 kΩ range) → touch pin. No pull-ups, and don't connect the pad to ground.
 - Rules from the Espressif touch sensor design note (written for the original ESP32, but the electrode and layout rules apply to the S3 too):
   - **Electrode:** round is best, 8–15 mm (12 mm typical), bigger for thicker overlays. More than 5 mm between buttons.
@@ -155,6 +204,92 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
   - Raise the threshold.
 - **Next measurement:** with real pads, run `setup_mode` untouched with music playing vs stopped to size the shift.
 
+### Panel test: copper pad behind 1 mm PETG (2026-11-10)
+**Setup:**
+- Feather still on the breadboard. A 12 cm lead goes from the breadboard to a 2 cm square of copper tape stuck to the back of a 1 mm PETG sample.
+- Firmware: `BoopBox_v0.1.0.yaml` with `setup_mode: true` and threshold 5000.
+- No audio playback appeared in the log.
+
+**Method:** capture 45 s of `setup_mode` logs. Wait about 10 s, then finger on for about 5 s, off for 10 s, and on for 5 s. Summarize the max and min `difference` per second.
+
+**Play Pause (GPIO14):**
+
+| State | `difference` |
+|---|---|
+| Idle | mostly within ±150, with occasional spikes up to about 630 |
+| Touch 1 (about 5 s) | held at 11k–13k (3k–11k during the first second) |
+| Touch 2 (about 5 s) | held at 11k–15k |
+| Release | swings negative briefly (down to −5.3k), then back to idle within about 1 s |
+
+**Observations:**
+- Through 1 mm PETG, a touch is about 3% of the raw value (about 120k), compared with 150k–400k on bare jumper tips. This matches the earlier note that a touch through the panel gives a much smaller difference.
+- The benchmark froze during both touches. Corrected later: a frozen benchmark does **not** prove detection, because Vol Up's benchmark also froze on a 4.5k touch, below the 5000 threshold. The binary sensor's ON/OFF changes don't appear in the serial log, so check the web UI to confirm detection.
+- Between touches the idle baseline drifted on its own from about 118k to 120k. The benchmark followed it without a false trigger.
+- Suggested threshold: about 7000, which is about 55% of the held touch and more than 10× the largest idle spike.
+
+**Vol Down (GPIO6):**
+- Same setup, except the pad is a 2 cm diameter circle of copper tape.
+
+| State | `difference` |
+|---|---|
+| Idle | within about ±150 |
+| Touch 1 (about 5 s) | held at 17k–18k |
+| Touch 2 (about 5 s) | held at about 21k |
+| Release | dipped once to −3.5k, then back to idle immediately |
+
+- The circle read about 40–75% higher than the square pad on Play Pause, with less idle noise, even though the circle has about 20% less area. Threshold 7000 is under half of a touch.
+- Caveat: this comparison wasn't controlled. The two pads were on different pins (GPIO14 and GPIO6) with different leads, the finger pressure varied, and each got only one run. Shape alone isn't proven.
+- During this run, Vol Up (GPIO5), with nothing touching it, showed a slow idle wobble of about ±400. That is more than the other two pads, but still far below the threshold.
+
+**Vol Up (GPIO5), behind 5 mm PETG:**
+- A 2 cm diameter circle of copper tape behind a **solid 5 mm thick** PETG sample. Otherwise the same setup.
+
+| State | `difference` |
+|---|---|
+| Idle | about −670 to +570, the noisiest of the three pins |
+| Touch 1 (about 6 s) | held at 4.3k–5.4k |
+| Touch 2 (about 5 s) | held at 3.5k–4.1k |
+| Release | back to idle immediately, with no negative swing |
+
+- 5 mm gives about a quarter of the 1 mm touch (about 4k against 17k–21k with the same pad shape). Most of the touch sits **below the 5000 threshold**, so it would mostly not trigger.
+- Making 5 mm work would need a threshold of about 2000–2500. That is only about 4× the idle noise on this pin, which is a thin margin. This matches the Espressif guidance of at most 3 mm of overlay.
+
+**Finding: Vol Up latched ON after the pad was swapped.**
+- The web UI showed Vol Up stuck ON before this run. The first log line showed value = 114.7k but benchmark = 89.9k, a difference of 24.7k.
+- Likely cause: attaching the new pad and lead while the box was running added about 25k of capacitance as a step change. That is past the threshold, so the benchmark froze at the old, lower value and the pad stayed latched.
+- **Rule:** swapping or attaching pads on a running box latches them. Reboot after any pad change.
+- In this run the latch was cleared by an unplanned reboot (see the next finding).
+
+**Finding: the box reboots after 15 minutes with no API client.**
+- The log shows `[api] No clients; rebooting`. `api:` has the default `reboot_timeout` of 15 min.
+- Nothing connects through the native API (no Home Assistant), and the web UI doesn't count as a client.
+- Unless that changes, the box reboots every 15 min. Consider setting `api: reboot_timeout: 0s`, or dropping `api:` if MQTT and the web UI cover everything.
+
+### Panel test: Vol Up on top-panel-v1 (2026-11-10)
+**Setup:**
+- First test on a printed enclosure part: **top-panel-v1**, with the Vol Up pad (GPIO5) mounted in it.
+- Firmware: `BoopBox_v0.1.0.yaml` with `setup_mode: true` and threshold 5000, flashed for the run and then switched back to `setup_mode: false`.
+- Pad size and shape, and the wall thickness at the pad, weren't recorded for this run.
+
+**Method:** about 75 s of `setup_mode` logs. Finger on for about 5 s, off for about 7 s, then on again for about 5 s. Summarize the max and min `difference` per second.
+
+| State | `difference` |
+|---|---|
+| Idle | about −2.3k to +400 |
+| Touch 1 (about 5 s) | held at 9k–13k |
+| Off (about 6 s) | about −1.6k to +400 |
+| Touch 2 (about 4 s) | held at 12k–23k |
+| After (about 50 s) | about −3k to +500 |
+
+- The binary sensor went ON and OFF once for each touch, so threshold 5000 detects both. Each touch is about 2–4× the threshold.
+- Idle dips reach about −3k, compared with ±400–670 for Vol Up on the loose samples. A negative swing can't cause a false press, but it's new on this pin.
+- Touch 2 read about twice as high as touch 1, probably because of finger pressure.
+- Suggested threshold: about 6000–7000, which stays under the 9k low end of touch 1.
+
+**Still to do:**
+- Repeat Vol Up behind 1 mm (or 2–3 mm) PETG, for a like-for-like comparison and to find the thickness limit.
+- Run an untouched capture with music playing, to check that the audio shift stays well below the threshold.
+
 ### LED ring
 - NeoPixel ring on 5V, with a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
 - Cap brightness in firmware (`max_brightness`): full white can draw about 1 A from a 16-LED ring, and the ring shares USB 5V with the amp. NeoPixels draw about 1 mA per LED even when dark.
@@ -181,7 +316,8 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
 - Touch UX: auto-repeat while vol± is held. Check whether play/pause double-fires (once seen as PLAYING → PAUSED 0.5 s apart). If it does, use `on_click` with min/max length or a longer debounce.
 - Power switch design for the battery build (see above).
 - LED ring size (12 vs 16) and placement. If it goes around the NFC tap zone, check read range with the ring mounted.
-- Touch pad placement: away from the tap zone, at a panel thickness that works. Check NFC read range with pads mounted.
+- Touch pad placement: away from the tap zone. The pads go behind 1 mm sections of the wall (decided 2026-11-10). Check NFC read range with pads mounted.
+- Touch: move all three pads to 2 cm circles behind 1 mm PETG, reboot, recalibrate each pad, and then set per-pad thresholds (about 7000 is the starting point).
 - Click sound clip.
 - Other tests: USB current budget (KWS meter: LED cap + amp peaks), reliability of the level-shifted LED data, whether the KWS meter passes USB data, battery fit.
 
