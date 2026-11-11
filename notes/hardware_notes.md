@@ -31,33 +31,43 @@ Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in 
 ## Status ring (NeoPixel Ring 12, WS2812B)
 
 12-LED addressable ring used as a status indicator. Firmware: `esp32_rmt_led_strip`
-light on `${ring_pin}`. Single ring, so DOUT is left unconnected (it only exists
+light on `${led_ring_pin}`. Single ring, so DOUT is left unconnected (it only exists
 to daisy-chain a second ring/strip).
+
+> **The ring must be powered from BAT, not USB.** The Feather's USB pin is dead
+> on battery, so a ring on USB goes dark as soon as USB-C is unplugged. See
+> "Battery build" below for why BAT direct was chosen over a boost converter.
 
 | Ring | Feather | Notes |
 |---|---|---|
-| 5V / VCC | USB (5V) | Same rail as the amp. WS2812B needs 5V logic/power. |
+| VCC | **BAT** (3.7–4.2V) | Not USB. Same rail as the amp. ~1000µF across VCC/GND at the ring. A P-channel MOSFET high-side switch is planned (see "Battery build"). |
 | GND | GND | Common ground with the Feather. |
-| DIN | A0 / GPIO18 | ~330–470Ω in series on the data line; ~1000µF across 5V/GND. |
+| DIN | A0 / GPIO18 | ~330–470Ω in series on the data line. No level shifter needed on BAT. |
 | DOUT | — | Unused for one ring; chains to the next ring's DIN if expanded. |
 
-- A0 (GPIO18) drives DIN. Pin is a firmware substitution (`ring_pin`).
-- The ESP32-S3 drives 3.3V data into a 5V part. It usually works over short
-  leads, but a level shifter (or the series resistor above) is the robust fix.
+- A0 (GPIO18) drives DIN. Pin is a firmware substitution (`led_ring_pin`).
+- With VCC at 3.7–4.2V, the 3.3V data line meets the WS2812B logic-high level
+  (0.7 × VDD ≤ 2.94V), so no level shifter is needed. A level shifter (74AHCT125)
+  is only needed if the ring is ever moved to a 5V rail.
+- WS2812B is specified for 3.5–5.3V, so BAT is slightly out of spec at the low
+  end: colors dim and shift toward about 3.5V. Cap brightness in firmware.
 
-### Power budget (amp + ring on USB)
-Both the amp and the ring hang off the 5V rail, so size the supply for the sum:
+### Power budget (amp + ring on BAT)
+The amp and the ring both hang off BAT. On battery they draw from the cell
+(rated about 2 A continuous). On USB they draw through the cell and the Feather's
+charger. Size for the sum:
 
-| Load | Worst case @5V | Typical |
+| Load | Worst case | Typical |
 |---|---|---|
 | MAX98357A amp | ~0.5A at full output | well under, music peaks are brief |
 | Ring (12× WS2812B) | ~0.72A (all white, full brightness) | ~0.05–0.15A at status brightness |
 | Feather + WiFi | ~0.1–0.25A (TX bursts) | — |
 
-- Worst case (full-white ring + loud + WiFi burst) is ~1.4–1.5A. A 500mA
-  USB 2.0 port will brown out / reset under that; use a **2A+ supply** (charger
-  or powered hub) for amp + ring together. The 1000µF bulk cap at the amp helps
-  ride out spikes.
+- Worst case (full-white ring + loud + WiFi burst) is ~1.4–1.5A, inside the
+  cell's ~2 A rating. With the ring brightness capped (about 0.22 A at 30%), it's
+  well under. The 1000µF bulk cap at the amp helps ride out spikes.
+- On USB, the charger supplies part of the BAT load and the cell covers peaks,
+  so loud playback slows charging. Use a 2A+ USB supply.
 - Firmware caps ring current indirectly: status states run at low brightness and
   the volume readout is momentary. Full white only occurs if the ring is driven
   manually at 100%.
@@ -84,9 +94,7 @@ dead. This is a power-path decision, not a firmware one.
 |---|---|---|
 | Amp (MAX98357A) | VIN from USB → **BAT** (done). It runs on 2.5–5.5V, at about 1.5–2 W instead of 2.5 W at 5V. | None |
 | PN532 | VCC → Feather **3V** (done). The module takes 3.3V or 5V. | None |
-| LED ring | **5V boost converter** fed from BAT | Boost module |
-
-- Keep the amp **off** the boost rail. Amp plus ring through the boost would draw more than 2 A from the cell at low charge, which is past its rating.
+| LED ring | VCC → **BAT** (done; works well enough on 2026-11-11), switched by a P-channel MOSFET (planned, see below) | AO3401, 2N7000, resistors |
 - With USB plugged in, the amp on BAT draws through the cell and the Feather's charger. That's fine for the prototype, but loud playback slows charging.
 
 **Protection:**
@@ -96,21 +104,42 @@ dead. This is a power-path decision, not a firmware one.
 - The Feather charger stops at 4.2V. Don't add a second charger.
 - Optional firmware low-battery shutdown: the MAX17048 fuel gauge is now in `BoopBox_v0.1.0.yaml`. Stopping audio and going to deep sleep below about 3.4V or 5% is gentler on the cell than the protection circuit's hard cutoff.
 
-**Boost converter (ring only):**
+**LED ring power: BAT direct + MOSFET switch (decision 2026-11-11):**
+- The ring runs straight off BAT, with no boost converter. On 2026-11-11 it worked well enough for now.
+- Brightness will be capped in firmware (full white is far too bright anyway). At a 30% cap, 12 LEDs draw about 0.22 A worst case, compared with about 0.72 A at full.
+- **Downsides of BAT direct:**
+  - WS2812B is specified for 3.5–5.3V. Toward about 3.5V, blue and white dim and colors shift. Below that, LEDs can glitch. The low-battery shutdown at about 3.4V keeps the box mostly out of that range.
+  - It's out of spec. It works on this ring, but another batch may behave differently.
+  - Unswitched, the ring draws about 1 mA per LED when dark (about 12 mA). That empties the 2 Ah cell in about a week while idle, and it would keep draining the cell to the protection cutoff after a low-battery deep sleep. The MOSFET switch fixes this.
+- **Data line:** with VCC at 3.7–4.2V, the 3.3V data line meets the WS2812B logic-high level (0.7 × VDD ≤ 2.94V), so the 74AHCT125 level shifter isn't needed in this setup.
 
-| Spec | Target |
-|---|---|
-| Input | Works down to about 3.0V |
-| Output | Fixed 5V, at least 1 A continuous |
-| Efficiency | Synchronous, 85% or better. 1 A out at 3.5V in draws about 1.6 A from the cell. |
-| Enable pin | Logic-level EN, driven from a GPIO to power the ring off when idle or asleep. The ring draws about 1 mA per LED even when dark. |
-| Load disconnect | Required. Many boosts pass about VIN to the output when disabled, which leaves the ring half-powered. |
-| Quiescent current | µA when disabled |
-| Layout | Shielded inductor if possible. Keep it away from the touch pads and the PN532 antenna. |
+**High-side switch:**
+- BAT → AO3401 (P-channel MOSFET) source. The MOSFET's drain → ring VCC, with the 1000 µF cap on the ring side.
+- Gate → 100 kΩ pull-up to BAT, so the ring is **off** by default.
+- Gate → 2N7000 drain (or a small NPN collector). Its source → GND. Its gate ← GPIO (to be chosen), optionally through 10 kΩ, with a pull-down so it stays off during boot.
+- GPIO high: the 2N7000 pulls the gate low and the ring is on. GPIO low: the gate sits at BAT and the ring is off.
+- **Don't drive the gate straight from a GPIO.** The source sits at up to 4.2V and a GPIO set high only reaches 3.3V, which leaves V_GS at about −0.9V. That's near the AO3401 threshold, so it may not turn fully off.
+- Pick a P-channel MOSFET rated to turn fully on at a gate voltage of 2.5V or lower (the AO3401 qualifies), so it stays fully on as the cell drains.
+- Parts cost about $0.50.
 
-- **Avoid:** MT3608 and other cheap adjustable modules (no real shutdown, the trimmer can drift above 5V, noisy). Also avoid boost boards that charge the battery (such as the PowerBoost 1000C), because the Feather already charges it.
-- **Candidate:** Adafruit PowerBoost 1000 Basic, the version without a charger. It's based on the TI TPS61030, has an EN pin and disconnects the load in shutdown. Check the datasheet when ordering.
-- **Wiring:** BAT → boost VIN, GND → GND, boost 5V → ring VCC (keep the 1000 µF cap), boost EN → a free GPIO (to be chosen). The level shifter on the data line stays.
+**Expected losses:**
+
+| | 30% cap (0.22 A) | 100% (0.72 A) |
+|---|---|---|
+| MOSFET drop (about 60 mΩ) | about 13 mV | about 43 mV |
+| Power lost | about 3 mW (about 0.3%) | about 31 mW (about 1%) |
+| Pull-up while on | about 40 µA | about 40 µA |
+| Off | µA leakage | µA leakage |
+
+- For comparison, a boost converter would lose about 10–15% of the ring's power, roughly 100–150 mW at a 30% cap.
+
+**Fallback: 5V boost converter** (if BAT direct proves too dim or glitchy):
+- Use it for the ring only. Keep the amp off it, because amp plus ring through the boost would draw more than 2 A from the cell at low charge.
+- **Wants:** fixed 5V at 0.5 A or more (enough at capped brightness), works down to about 3.0V, an EN pin with true load disconnect, and low quiescent current.
+- **Avoid:** MT3608 and other adjustable modules, and boards that charge the battery (the Feather already charges it).
+- **Candidates:**
+  - Adafruit PowerBoost 1000 Basic (#2030, about $15). It's based on the TPS61030. EN is pulled up to VBAT, so drive it through an N-channel MOSFET, never straight from a GPIO.
+  - A generic Amazon 5V boost board (about $0.80 each in a 10-pack). It has no off switch, so pair it with the high-side switch above.
 
 ### Bring-up status (2026-10-17)
 - First sound confirmed: Feather + MAX98357A + 4Ω speaker on USB power, streaming over Wi-Fi from a local HTTP server. The start of playback isn't clipped (a 3-beep test file plays all three beeps).
@@ -131,7 +160,7 @@ Breadboard touch bring-up is done. All three pads detect touches and drive the p
 | Vol − (touch) | D6 | 6 | T6 |
 | Play/Pause (touch) | A4 | 14 | T14 |
 | Spare touch | A5 | 8 | T8 |
-| LED ring data | A0 | 18 | not a touch pin; through a 74AHCT125 level shifter (3.3V → 5V) |
+| LED ring data | A0 | 18 | not a touch pin. Ring VCC is on BAT, so no level shifter is needed. |
 
 - Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 7 (I2C power), 9–11 (I2S) and 12 (amp SD) are already taken. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
 - Three buttons fit on native touch, so no MPR121 is needed. If more controls are added later, the MPR121 (STEMMA QT) is the fallback.
@@ -291,8 +320,8 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
 - Run an untouched capture with music playing, to check that the audio shift stays well below the threshold.
 
 ### LED ring
-- NeoPixel ring on 5V, with a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
-- Cap brightness in firmware (`max_brightness`): full white can draw about 1 A from a 16-LED ring, and the ring shares USB 5V with the amp. NeoPixels draw about 1 mA per LED even when dark.
+- NeoPixel ring with VCC on **BAT** (not USB 5V), a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
+- Cap brightness in firmware. Full white draws about 0.72 A from the 12-LED ring, and the ring shares BAT with the amp. NeoPixels draw about 1 mA per LED even when dark.
 - Idea: briefly show the volume level on the ring after vol± presses.
 
 ### Feedback sound
