@@ -30,7 +30,7 @@ topics, and answers each message. It never polls.
 | `boopbox/<id>/boop` | box | server | A tag was tapped. |
 | `boopbox/<id>/play` | server | box | Play this stream (answer to a boop). |
 | `boopbox/<id>/error` | server | box | A boop could not be answered. |
-| `boopbox/<id>/cmd` | server | box | A command for one box (`get_version`, `flash`). |
+| `boopbox/<id>/cmd` | server | box | A command for one box (`get_version`, `flash`, `write_tag`). |
 | `boopbox/all/cmd` | server | all boxes | A broadcast command (`get_version`). |
 | `boopbox/<id>/version` | box | server | Firmware/chip report (reply to `get_version`, or unsolicited). |
 
@@ -151,7 +151,36 @@ matching that box's own reported chip.
 Box side: `url` is a path, so the box prefixes its configured server base URL.
 The box ignores a `flash` whose `url` does not start with `/firmware/` or whose
 `md5` is not 32 characters. A box acts on `get_version` from either topic but on
-`flash` only from its own `boopbox/<id>/cmd`.
+`flash` and `write_tag` only from its own `boopbox/<id>/cmd`.
+
+**Write-tag command** (`write_tag`), per-device only — never broadcast. Puts the
+box's tag reader into write mode so the next tag tapped is written with `slug`:
+
+```json
+{ "v": 1, "cmd": "write_tag", "slug": "boop/zelda" }
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `v` | int | Protocol version (server-stamped). |
+| `cmd` | string | `write_tag`. |
+| `slug` | string | The payload to write, 1–128 bytes. Stored as a single NDEF text record, which is what a later `boop` reports as `slug`. |
+
+Box side:
+
+- Write mode lasts **30 seconds**. The first tag tapped in that window is
+  written; if none is, the box cancels write mode and returns to reading.
+- Tapping a tag in write mode writes it and does **not** produce a `boop`. The
+  tag has to be lifted and tapped again to boop.
+- A second `write_tag` while one is pending replaces the pending slug and
+  restarts the 30 seconds.
+- The ring shows a slow purple pulse while waiting, then solid green for 1.5s
+  once the write is done (a single red pulse if the tag could not be formatted).
+- A command with a missing, empty, or over-128-byte `slug` is ignored.
+- The box sends **no reply**: there is no result message in protocol v1, so the
+  server cannot tell whether a write succeeded or timed out. Writes are for
+  NTAG21x / Ultralight tags. The reader reports that a write was attempted, not
+  that it verified.
 
 ### `version` — box → `boopbox/<id>/version`
 
@@ -180,6 +209,14 @@ the OTA policy and updates the device's last-seen firmware.
    stream URL, and publishes a single `play` to `boopbox/<id>/play` — or an
    `error` to `boopbox/<id>/error` if any step fails.
 3. Box streams the `url`.
+
+### Tag write
+
+1. Server publishes `write_tag` with the `slug` to `boopbox/<id>/cmd`.
+2. Box enters write mode for 30 seconds and writes the slug to the next tag
+   tapped.
+3. Nothing is published back. A later tap of that tag produces the usual `boop`
+   carrying the written `slug`.
 
 ### OTA: version-check and flash
 
