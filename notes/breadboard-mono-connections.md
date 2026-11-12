@@ -11,7 +11,7 @@ substitutions in `firmware/BoopBox_v0.1.0.yaml`. See also `hardware_notes.md`.
 | 1 | D9 / GPIO9 | BCLK | I2S bit clock | `i2s_bclk_pin` |
 | 2 | D10 / GPIO10 | LRC | I2S word select (LR clock) | `i2s_lrclk_pin` |
 | 3 | D11 / GPIO11 | DIN | I2S data | `i2s_dout_pin` |
-| 4 | USB (5V) | VIN | Power | 5V gives ~2.5W into 4Ω; 3.3V only ~1.3W |
+| 4 | BAT (3.7–4.2V) | VIN | Power | Was USB 5V (~2.5W into 4Ω); BAT since 2026-11-10 so it runs on battery. 3.3V only ~1.3W |
 | 5 | GND | GND | Ground | Share a common ground rail |
 | 6 | GND | GAIN | Gain select | GND = 12 dB (floating 9 dB was too quiet) |
 | 7 | — (leave floating) | SD | Shutdown / channel select | Floating = (L+R)/2 mono. GPIO12 reserved for mute later |
