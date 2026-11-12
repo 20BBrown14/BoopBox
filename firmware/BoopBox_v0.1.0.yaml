@@ -21,9 +21,9 @@ substitutions:
   server_base_url: http://192.168.86.76:9685
   i2c_sda_pin: GPIO3
   i2c_scl_pin: GPIO4
-  i2s_bclk_pin: GPIO9
-  i2s_lrclk_pin: GPIO10
-  i2s_dout_pin: GPIO11
+  i2s_bclk_pin: GPIO38        # Feather RX (moved off D9: I2S clocks shifted D5/D6 touch)
+  i2s_lrclk_pin: GPIO39       # Feather TX
+  i2s_dout_pin: GPIO37        # Feather MI
   # Capacitive touch pads (ESP32-S3 native touch; GPIO1-14 are touch-capable).
   touch_vol_up_pin: GPIO5      # Feather D5
   touch_vol_down_pin: GPIO6    # Feather D6
