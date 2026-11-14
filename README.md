@@ -20,23 +20,9 @@ All commands run from the `server/` directory unless noted.
 
 - Python 3.12
 - Docker and Docker Compose (for the containerized run)
-- A Python installer: either [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
-  or `pip` (bundled with Python)
-
 ### Install dependencies
 
 Create a virtual environment and install the project with its dev extras.
-
-Using `uv`:
-
-```bash
-cd server
-uv venv
-source .venv/bin/activate
-uv pip install -e '.[dev]'
-```
-
-Using `pip`:
 
 ```bash
 cd server
