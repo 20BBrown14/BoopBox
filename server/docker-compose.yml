@@ -6,11 +6,10 @@ services:
     env_file:
       - .env
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
       - ./app-data:/data
       - ./firmware-bins:/firmware-bins:ro
     environment:
-      BOOPBOX_DB_PATH: /data/devices.db
+      BOOPBOX_DB_PATH: /data/boopbox.db
       BOOPBOX_FIRMWARE_DIR: /firmware-bins
     # Ordering nicety only: the app's reconnect loop already tolerates a
     # not-yet-up broker, so this is not required for correctness. It is ignored

@@ -5,17 +5,14 @@ and a fake publisher that records send_cmd/send_flash. Endpoint tests use a
 TestClient and stub app.state.ota_policy to capture the triggered query.
 """
 
-import textwrap
-
 import pytest
-from fastapi.testclient import TestClient
 
-from app.config import get_settings
+from app.auth.passwords import _hasher
 from app.firmware import FirmwareCache
-from app.main import create_app
 from app.models import CmdName, FlashCmd, VersionReply
 from app.mqtt.publish import BROADCAST
 from app.ota import OtaPolicy
+from tests.conftest import T, add_device, login, owner_headers, run_sql
 
 VERSION = "0.2.0"
 
@@ -51,8 +48,17 @@ def _policy(firmware_dir, publisher, *, auto_push=False) -> OtaPolicy:
     _write_bin(firmware_dir, "esp32s3", VERSION, b"the-bin-bytes")
     cache = FirmwareCache(firmware_dir, VERSION)
     return OtaPolicy(
-        cache, VERSION, publisher, auto_push_on_publish=auto_push
+        cache, _Settings(VERSION), publisher, auto_push_on_publish=auto_push
     )
+
+
+class _Settings:
+    def __init__(self, version: str) -> None:
+        self.version = version
+
+    async def get(self, key: str):
+        assert key == "ota.manifest_version"
+        return self.version
 
 
 # --- policy: compare-and-maybe-flash ---
@@ -140,15 +146,6 @@ async def test_auto_push_knob_on_broadcasts_query(firmware_dir):
 
 # --- endpoint: POST /ota/update triggers query only ---
 
-CONFIG = textwrap.dedent(
-    f"""
-    sources: []
-    mappings: {{}}
-    ota:
-      manifest_version: "{VERSION}"
-    """
-)
-
 
 class _RecordingPolicy:
     def __init__(self) -> None:
@@ -158,33 +155,14 @@ class _RecordingPolicy:
         self.queries.append(device_id)
 
 
-AUTH_USER = "admin"
-AUTH_PASS = "pw"
-
-
 @pytest.fixture
-def client(tmp_path, firmware_dir, monkeypatch):
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(CONFIG)
-    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
-    monkeypatch.setenv("BOOPBOX_CONFIG_PATH", str(config_path))
-    monkeypatch.setenv("BOOPBOX_DB_PATH", str(tmp_path / "devices.db"))
-    monkeypatch.setenv("BOOPBOX_FIRMWARE_DIR", str(firmware_dir))
-    monkeypatch.setenv("BOOPBOX_AUTH_USERNAME", AUTH_USER)
-    monkeypatch.setenv("BOOPBOX_AUTH_PASSWORD", AUTH_PASS)
-    monkeypatch.setenv("BOOPBOX_JWT_SECRET", "jwt-signing-secret-at-least-32-bytes")
-    get_settings.cache_clear()
-    with TestClient(create_app()) as c:
-        yield c
-    get_settings.cache_clear()
+def client(client):
+    add_device(client.db_path, "boop-test")
+    return client
 
 
 def _user_headers(client) -> dict[str, str]:
-    r = client.post(
-        "/auth/token", json={"username": AUTH_USER, "password": AUTH_PASS}
-    )
-    assert r.status_code == 200
-    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+    return owner_headers(client)
 
 
 def test_update_no_body_broadcasts_query(client):
@@ -199,8 +177,7 @@ def test_update_no_body_broadcasts_query(client):
 def test_update_with_device_id_queries_that_device(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
-    # The seed device id is created at startup.
-    seed_id = get_settings().seed_device_id
+    seed_id = "boop-test"
     r = client.post(
         "/ota/update", json={"device_id": seed_id}, headers=_user_headers(client)
     )
@@ -227,3 +204,41 @@ def test_update_without_auth_is_401(client):
     r = client.post("/ota/update")
     assert r.status_code == 401
     assert recorder.queries == []
+
+
+async def test_no_target_version_never_flashes(firmware_dir):
+    pub = _FakePublisher()
+    policy = _policy(firmware_dir, pub)
+    policy._settings = _Settings("")
+    await policy.on_version_reply(
+        "boop-1", VersionReply(v=1, firmware="0.1.0", chip="esp32s3")
+    )
+    assert pub.flashes == []
+
+
+def test_update_needs_ota_manage(client):
+    run_sql(
+        client.db_path,
+        "INSERT INTO users (id, display_name, created_at, updated_at) "
+        "VALUES (2, 'kid', ?, ?)",
+        (T, T),
+    )
+    run_sql(
+        client.db_path,
+        "INSERT INTO auth_identities (user_id, provider, subject, secret_hash, "
+        "created_at, updated_at) VALUES (2, 'local', 'kid', ?, ?, ?)",
+        (_hasher.hash("kid-password-123"), T, T),
+    )
+    recorder = _RecordingPolicy()
+    client.app.state.ota_policy = recorder
+    token = login(client, "kid", "kid-password-123").json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.post("/ota/update", headers=headers).status_code == 403
+    run_sql(
+        client.db_path,
+        "INSERT INTO user_permissions (user_id, permission_id, granted_at) "
+        "VALUES (2, 'ota.manage', ?)",
+        (T,),
+    )
+    assert client.post("/ota/update", headers=headers).status_code == 200
+    assert recorder.queries == [None]

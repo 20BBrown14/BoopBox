@@ -5,14 +5,14 @@ path decides whether an update actually happens. An absent `device_id`
 broadcasts the query to the fleet; a present one targets that device (404 if the
 device id is unknown).
 
-Behind user auth (JWT bearer): a human/UI action, never a box-facing path. A
-device credential does not satisfy `require_user`.
+Needs the `ota.manage` permission: a human/UI action, never a box-facing path.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.auth import require_user
+from app.auth import require_permission
+from app.db import devices
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ class OtaUpdateRequest(BaseModel):
     device_id: str | None = None
 
 
-@router.post("/ota/update", dependencies=[Depends(require_user)])
+@router.post("/ota/update", dependencies=[Depends(require_permission("ota.manage"))])
 async def ota_update(
     request: Request, body: OtaUpdateRequest | None = None
 ) -> dict[str, str]:
@@ -30,7 +30,8 @@ async def ota_update(
     policy = request.app.state.ota_policy
 
     if body.device_id is not None:
-        device = await request.app.state.devices.get(body.device_id)
+        async with request.app.state.db.read() as conn:
+            device = await devices.get(conn, body.device_id)
         if device is None:
             raise HTTPException(status_code=404, detail="unknown device")
         await policy.query_version(body.device_id)

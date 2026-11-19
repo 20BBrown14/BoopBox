@@ -1,39 +1,72 @@
-"""The boop -> one response flow .
+"""The boop -> one response flow.
 
-`build_response` is pure dispatch: it parses, version-checks, resolves,
-selects, mints, and returns exactly one `Play` or `Error` — never both, never
-zero. Enforcing single-response structurally (one return value) is the whole
-point. Side effects (publishing, last_seen) live in the service around this.
+`handle_boop` returns exactly one `Play` or `Error`, plus the boop history
+record to write. Publishing and writing live in the service around it.
 """
 
 import json
 import logging
 import random
 import time
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.db.boops import BoopRecord
+from app.db.engine import Database
+from app.db.timestamps import timestamp
 from app.errors import ErrorCode, mqtt_error
 from app.models import Boop, BoopRef, Error, Play, VersionReply
-from app.mqtt.selection import select_entry
+from app.playback import SLUG_MAX, resolve
 from app.protocol import is_supported
-from app.resolver import resolve
-from app.sources import SourceRegistry
 from app.stream_token import mint
-from app.types.source import SourceError
 from app.types.token import StreamClaims
 
 logger = logging.getLogger(__name__)
 
+MAX_PAYLOAD_BYTES = 4096
+UID_MAX = 32
+_UID_CHARS = frozenset("0123456789ABCDEF:")
+# A box clock before this is unset, not real.
+_EARLIEST_BOX_TIME = 1577836800  # 2020-01-01
+_BOX_CLOCK_SLACK = 86400
+
+# out_of_scope is only for the log; the box can't learn the slug exists elsewhere.
+_REPLY_CODE = {
+    "unknown_tag": ErrorCode.unknown_tag,
+    "out_of_scope": ErrorCode.unknown_tag,
+    "item_unavailable": ErrorCode.item_unavailable,
+    "source_unavailable": ErrorCode.source_unavailable,
+}
+
+
+@dataclass
+class BoopResult:
+    response: Play | Error
+    record: BoopRecord | None = None
+    entry_status: dict[int, str] = field(default_factory=dict)
+
+
+def normalize_uid(raw: str) -> str | None:
+    """Uppercase hex with ':' separators, or None if it can't be one."""
+    text = raw.strip().upper().replace("-", ":").replace(" ", ":")
+    if ":" not in text and len(text) % 2 == 0:
+        text = ":".join(text[i : i + 2] for i in range(0, len(text), 2))
+    if not 1 <= len(text) <= UID_MAX or not set(text) <= _UID_CHARS:
+        return None
+    return text
+
+
+def box_time(ts: int, now: float) -> str | None:
+    if not _EARLIEST_BOX_TIME <= ts <= now + _BOX_CLOCK_SLACK:
+        return None
+    return timestamp(datetime.fromtimestamp(ts, UTC))
+
 
 def _best_effort_ref(payload: object) -> BoopRef:
-    """A partial BoopRef parsed before an unknown `v` is trusted.
-
-    Only `id`/`slug` if they are plain strings; anything else stays None. Used
-    solely for `unsupported_version`, which is best-effort by contract.
-    """
+    """Only for replies to payloads that couldn't be parsed as a boop."""
     if not isinstance(payload, dict):
         return BoopRef()
     bid = payload.get("id")
@@ -44,122 +77,96 @@ def _best_effort_ref(payload: object) -> BoopRef:
     )
 
 
-def _stream_url(settings: Settings, token: str) -> str:
-    # public_base_url is admin-supplied and used verbatim; never derive the host
-    # from the socket. The token is URL-encoded into the query safely.
-    return f"{settings.public_base_url}/stream?sig={quote(token, safe='')}"
+def _supported_version(payload: object) -> bool | None:
+    """True/False for an integer `v`, None when there is no usable `v`."""
+    version = payload.get("v") if isinstance(payload, dict) else None
+    if not isinstance(version, int) or isinstance(version, bool):
+        return None
+    return is_supported(version)
 
 
-async def build_response(
+async def handle_boop(
     device_id: str,
     raw: bytes,
-    settings: Settings,
-    sources: SourceRegistry,
     *,
+    db: Database,
+    sources,
+    settings: dict,
     rng: random.Random,
-) -> Play | Error:
-    """Build the single response for one boop. Returns a `Play` or an `Error`.
-
-    `device_id` comes from the topic (`boopbox/<id>/boop`) and is authoritative.
-    Returns None only would violate the single-response contract — it never
-    does; every branch returns exactly one model.
-    """
-    # Decode and version-check.
+) -> BoopResult:
+    """`device_id` comes from the topic and is authoritative."""
     try:
         payload = json.loads(raw)
     except (ValueError, TypeError):
-        logger.warning("boop from %s: undecodable payload, dropping", device_id)
-        return mqtt_error(ErrorCode.unsupported_version, BoopRef())
+        logger.warning("boop from %s: undecodable payload", device_id)
+        return BoopResult(mqtt_error(ErrorCode.unsupported_version, BoopRef()))
 
-    version = payload.get("v") if isinstance(payload, dict) else None
-    if (
-        not isinstance(version, int)
-        or isinstance(version, bool)
-        or not is_supported(version)
-    ):
-        return mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
+    supported = _supported_version(payload)
+    if not supported:
+        reply = mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
+        if supported is False:
+            return BoopResult(reply, BoopRecord(device_id, "unsupported_version"))
+        return BoopResult(reply)
 
-    # Parse the Boop model at a supported version.
     try:
         boop = Boop.model_validate(payload)
     except ValidationError:
-        # Supported v but structurally invalid. If id/slug happen to be present,
-        # echo them so the box can correlate; otherwise unsupported_version is
-        # the only honest signal (there is no valid boop.id to key on).
-        ref = _best_effort_ref(payload)
-        logger.warning("boop from %s: invalid structure at v=%s", device_id, version)
-        return mqtt_error(ErrorCode.unsupported_version, ref)
+        logger.warning("boop from %s: invalid structure", device_id)
+        return BoopResult(
+            mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
+        )
+    uid = normalize_uid(boop.uid)
+    if uid is None:
+        logger.warning("boop from %s: invalid tag uid", device_id)
+        return BoopResult(
+            mqtt_error(ErrorCode.unsupported_version, _best_effort_ref(payload))
+        )
 
     ref = BoopRef(id=boop.id, slug=boop.slug)
-
-    # Resolve the slug.
-    entries = resolve(settings, boop.slug)
-    if entries is None:
-        return mqtt_error(ErrorCode.unknown_tag, ref)
-
-    # Collection-aware selection -> one concrete (source, item).
-    try:
-        selection = await select_entry(entries, sources, rng=rng)
-    except SourceError as err:
-        logger.warning("boop from %s: select failed: %s", device_id, err.log_detail)
-        return mqtt_error(err.code, ref)
-
-    # Duration + mint.
-    source = sources.get(selection.source)
-    try:
-        duration = await source.duration(selection.item)
-    except SourceError as err:
-        logger.warning("boop from %s: duration failed: %s", device_id, err.log_detail)
-        return mqtt_error(err.code, ref)
+    now = time.time()
+    res = await resolve(db, sources, device_id, boop.slug, rng=rng)
+    record = BoopRecord(
+        device_id=device_id,
+        outcome=res.outcome,
+        uid=uid,
+        slug=boop.slug.strip()[:SLUG_MAX],
+        correlation_id=boop.id,
+        box_at=box_time(boop.ts, now),
+        mapping_id=res.mapping_id,
+        entry_id=res.entry_id,
+        source_id=res.source_id,
+        item=res.item,
+    )
+    if res.outcome != "played":
+        return BoopResult(
+            mqtt_error(_REPLY_CODE[res.outcome], ref), record, res.entry_status
+        )
 
     token = mint(
-        StreamClaims(
-            device=device_id,
-            source=selection.source,
-            item=selection.item,
-            exp=0,
-        ),
-        duration,
-        now=int(time.time()),
-        secret=settings.stream_secret,
-        pause_budget=settings.config.streaming.pause_budget_seconds,
+        StreamClaims(device=device_id, source=str(res.source_id), item=res.item, exp=0),
+        res.duration,
+        now=int(now),
+        secret=settings["secrets.stream"],
+        pause_budget=settings["streaming.pause_budget_seconds"],
     )
-
-    # Build the URL and play.
-    return Play(
-        boop=ref,
-        url=_stream_url(settings, token),
-        duration=duration,
+    url = f"{settings['public_base_url']}/stream?sig={quote(token, safe='')}"
+    return BoopResult(
+        Play(boop=ref, url=url, duration=res.duration), record, res.entry_status
     )
 
 
 def parse_version_reply(device_id: str, raw: bytes) -> VersionReply | None:
-    """Parse a `boopbox/<id>/version` reply, or None if it should be dropped.
-
-    Separate from `build_response` (the boop -> one play/error contract): a
-    version reply produces no response, only a parsed value the push policy
-    acts on. Undecodable, unsupported-`v`, or structurally invalid payloads are
-    dropped with a log and no side effect.
-    """
+    """A `/version` reply, or None if it should be dropped."""
     try:
         payload = json.loads(raw)
     except (ValueError, TypeError):
         logger.warning("version from %s: undecodable payload, dropping", device_id)
         return None
-
-    version = payload.get("v") if isinstance(payload, dict) else None
-    if (
-        not isinstance(version, int)
-        or isinstance(version, bool)
-        or not is_supported(version)
-    ):
-        logger.warning(
-            "version from %s: unsupported/missing v=%r, dropping", device_id, version
-        )
+    if not _supported_version(payload):
+        logger.warning("version from %s: unsupported or missing v, dropping", device_id)
         return None
-
     try:
         return VersionReply.model_validate(payload)
     except ValidationError:
-        logger.warning("version from %s: invalid structure at v=%s", device_id, version)
+        logger.warning("version from %s: invalid structure, dropping", device_id)
         return None

@@ -107,7 +107,10 @@ class JellyfinSource:
         self._require_key()
         items = await self._list_items(item, ids=item)
         if not items:
-            return None
+            raise SourceError(
+                ErrorCode.item_unavailable,
+                log_detail=f"jellyfin has no item {item!r}",
+            )
         ticks = items[0].get("RunTimeTicks")
         if not ticks:
             return None
@@ -166,7 +169,9 @@ class JellyfinSource:
         children pass through directly.
         """
         self._require_key()
-        children = await self._list_items(collection, parentId=collection, recursive="true")
+        children = await self._list_items(
+            collection, parentId=collection, recursive="true"
+        )
 
         member_ids: list[str] = []
         for child in children:
@@ -176,9 +181,7 @@ class JellyfinSource:
             if child.get("Type") == "Audio":
                 member_ids.append(cid)
                 continue
-            tracks = await self._list_items(
-                cid, parentId=cid, includeItemTypes="Audio"
-            )
+            tracks = await self._list_items(cid, parentId=cid, includeItemTypes="Audio")
             member_ids.extend(t["Id"] for t in tracks if t.get("Id"))
 
         if not member_ids:
@@ -189,16 +192,12 @@ class JellyfinSource:
         return member_ids
 
 
-def _build_jellyfin(config, settings) -> JellyfinSource:
-    """Registry builder for `type: jellyfin`.
-
-    Reads base_url/user_id from the source config and the API key from .env by
-    source id (BOOPBOX_SOURCE_<ID>_API_KEY).
-    """
+def _build_jellyfin(row, secret: str | None, options: dict) -> JellyfinSource:
+    user_id = options.get("user_id")
     return JellyfinSource(
-        base_url=config.base_url,
-        api_key=settings.api_key_for(config.id),
-        user_id=config.user_id,
+        base_url=row.base_url,
+        api_key=secret or "",
+        user_id=user_id if isinstance(user_id, str) else None,
     )
 
 

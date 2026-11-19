@@ -18,7 +18,6 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.auth import require_device_ota
-from app.config import get_settings
 from app.errors import ErrorCode, http_error
 from app.routes.stream import UNSATISFIABLE, _parse_range
 from app.types.device import Device
@@ -28,17 +27,21 @@ router = APIRouter()
 
 @router.get("/firmware/manifest.json")
 async def firmware_manifest(request: Request) -> JSONResponse:
+    version = await request.app.state.settings.get("ota.manifest_version")
+    if not version:
+        return _not_found()
     cache = request.app.state.firmware
+    cache.set_version(version)
     return JSONResponse(cache.manifest(), media_type="application/json")
 
 
-def _resolve_bin(chip: str, filename: str) -> Path | None:
+def _resolve_bin(firmware_dir: str, chip: str, filename: str) -> Path | None:
     """Resolve a bin path under the firmware dir, or None if it escapes/absent.
 
     Rejects any path that resolves outside the firmware dir (traversal) and any
     non-file target. Keeps the served surface to real bins under the dir.
     """
-    base = Path(get_settings().firmware_dir).resolve()
+    base = Path(firmware_dir).resolve()
     candidate = (base / chip / filename).resolve()
     if base not in candidate.parents:
         return None
@@ -59,7 +62,7 @@ async def firmware_bin(
     filename: str,
     _device: Device = Depends(require_device_ota),  # noqa: B008
 ) -> Response:
-    path = _resolve_bin(chip, filename)
+    path = _resolve_bin(request.app.state.env.firmware_dir, chip, filename)
     if path is None:
         return _not_found()
 

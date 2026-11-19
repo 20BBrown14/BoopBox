@@ -13,5 +13,9 @@ COPY app ./app
 RUN pip install --no-cache-dir .
 
 EXPOSE 9685
+# Startup (schema check, migrations) finishes before the server listens, so a
+# passing check also means the database is ready.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '9685') + '/health', timeout=4)"]
 
 CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host \"$HOST\" --port \"$PORT\""]

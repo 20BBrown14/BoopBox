@@ -37,7 +37,6 @@ SERVER_PASS = "server-pw"
 BOX_ID = "boop-test"
 BOX_PASS = "box-pw"
 OTHER_BOX_ID = "boop-other"
-STREAM_SECRET = "integration-secret"
 
 # Host-published ports, offset from the real broker (1883) and dev app (9685) to
 # avoid collisions. Inside the compose network they stay 1883 and 9685.
@@ -50,26 +49,26 @@ APP_BASE = f"http://127.0.0.1:{APP_PORT}"
 # its config/password files are not world-readable (chmod 0700 below).
 HOST_USER = f"{os.getuid()}:{os.getgid()}"
 
-# Fake source + one item mapping so a boop yields a playable stream with real
-# bytes (the built-in "fake" source serves fixed bytes for item "fake-item").
-TEST_CONFIG = textwrap.dedent(
-    """
-    sources:
-      - id: fake-main
-        type: fake
-        base_url: http://unused
-    mappings:
-      "boop/item":
-        - source: fake-main
-          item: fake-item
-          kind: item
-    streaming:
-      mode: proxy
-      pause_budget_seconds: 1800
-    ota:
-      manifest_version: "0.1.0"
-    """
-)
+SECRET_KEY = "a2V5LWZvci10aGUtYnJva2VyLWludGVncmF0aW9uLXQ"
+OWNER_PASSWORD = "integration-owner-pw"
+
+# Rows for the built-in "fake" source (fixed bytes for item "fake-item"), one
+# item mapping, and both boxes. Inserted once the app has created the schema.
+SEED_SQL = f"""
+INSERT INTO devices (id, created_at, updated_at) VALUES
+    ('{BOX_ID}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+    ('{OTHER_BOX_ID}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+INSERT INTO media_sources (id, type, name, name_key, base_url, created_at, updated_at)
+    VALUES (1, 'fake', 'Fake', 'fake', 'http://unused',
+            '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+INSERT INTO mappings (id, slug, name, created_at, updated_at)
+    VALUES (1, 'boop/item', 'Item', '2026-01-01T00:00:00.000Z',
+            '2026-01-01T00:00:00.000Z');
+INSERT INTO mapping_entries (mapping_id, source_id, item, position, created_at,
+                             updated_at)
+    VALUES (1, 1, 'fake-item', 0, '2026-01-01T00:00:00.000Z',
+            '2026-01-01T00:00:00.000Z');
+"""
 
 
 def _docker_available() -> bool:
@@ -166,21 +165,18 @@ def stack(tmp_path_factory):
         pytest.skip("docker + compose not available")
     project = tmp_path_factory.mktemp("boopbox-stack")
 
-    # Fake-source config mounted into the app.
-    (project / "config.yaml").write_text(TEST_CONFIG)
-
     # App env: point at the bundled broker service with the server account.
     (project / ".env").write_text(
         textwrap.dedent(
             f"""
-            BOOPBOX_STREAM_SECRET={STREAM_SECRET}
-            BOOPBOX_CONFIG_PATH=/app/config.yaml
-            BOOPBOX_DB_PATH=/data/devices.db
+            BOOPBOX_SECRET_KEY={SECRET_KEY}
+            BOOPBOX_DEFAULT_USERNAME=owner
+            BOOPBOX_DEFAULT_PASSWORD={OWNER_PASSWORD}
+            BOOPBOX_DB_PATH=/data/boopbox.db
             BOOPBOX_MQTT_HOST=mosquitto
             BOOPBOX_MQTT_PORT=1883
             BOOPBOX_MQTT_USERNAME={SERVER_USER}
             BOOPBOX_MQTT_PASSWORD={SERVER_PASS}
-            BOOPBOX_SEED_DEVICE_ID={BOX_ID}
             BOOPBOX_PUBLIC_BASE_URL={APP_BASE}
             """
         ).strip()
@@ -215,7 +211,6 @@ def stack(tmp_path_factory):
             env_file:
               - .env
             volumes:
-              - ./config.yaml:/app/config.yaml:ro
               - app-data:/data
             depends_on:
               - mosquitto
@@ -252,6 +247,7 @@ def stack(tmp_path_factory):
         _require_broker_up(project, timeout=90)
         if not _wait_for_health(90):
             _fail_with_logs(project, "app /health never became ready")
+        _seed(project)
         # Readiness is proven by a boop -> play round trip, not by log scraping.
         _wait_for_app_subscribed(project, timeout=30)
         yield project
@@ -262,6 +258,22 @@ def stack(tmp_path_factory):
             cwd=project,
             capture_output=True,
         )
+
+
+def _seed(project: Path) -> None:
+    script = (
+        "import sqlite3, sys; c = sqlite3.connect('/data/boopbox.db'); "
+        "c.execute('PRAGMA foreign_keys = ON'); c.executescript(sys.stdin.read())"
+    )
+    seeded = subprocess.run(
+        ["docker", "compose", "exec", "-T", "app", "python", "-c", script],
+        cwd=project,
+        input=SEED_SQL,
+        capture_output=True,
+        text=True,
+    )
+    if seeded.returncode != 0:
+        _fail_with_logs(project, f"seeding failed:\n{seeded.stderr}")
 
 
 def _compose_logs(project: Path, service: str | None = None) -> str:
@@ -359,7 +371,7 @@ def _boop_payload(slug: str) -> bytes:
             "v": PROTOCOL_VERSION,
             "id": "b1",
             "slug": slug,
-            "uid": "uid-b1",
+            "uid": "04:B1",
             "ts": 1700000000,
         }
     ).encode()

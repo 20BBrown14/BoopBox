@@ -4,16 +4,15 @@ Mirrors test_sources' style: deterministic, async, asserting the Source
 contract and the scrub-at-the-boundary discipline.
 """
 
-import textwrap
-
 import httpx2 as httpx
 import pytest
 
-from app.config import Settings
+from app.crypto import source_aad
 from app.errors import ErrorCode, default_message, http_error
-from app.sources import JellyfinSource, SourceRegistry
+from app.sources import JellyfinSource
 from app.sources.jellyfin import _TICKS_PER_SECOND
 from app.types.source import Range, SourceError
+from tests.conftest import add_source
 
 BASE = "http://jellyfin.test"
 KEY = "secret-key"
@@ -122,10 +121,12 @@ async def test_duration_zero_ticks_is_none():
     assert await src.duration(ITEM) is None
 
 
-async def test_duration_no_match_is_none():
-    # Empty Items (unknown id) -> unknown duration, not an error.
+async def test_duration_no_match_is_item_unavailable():
+    # Jellyfin answered and doesn't have the item: that's what marks an entry missing.
     src = _source(lambda r: httpx.Response(200, json={"Items": []}))
-    assert await src.duration(ITEM) is None
+    with pytest.raises(SourceError) as exc:
+        await src.duration(ITEM)
+    assert exc.value.code is ErrorCode.item_unavailable
 
 
 async def test_duration_never_sends_user_id():
@@ -189,7 +190,9 @@ async def test_members_passes_through_loose_audio():
         assert request.url.params.get("parentId") == "col-2"
         return httpx.Response(
             200,
-            json={"Items": [{"Id": "x", "Type": "Audio"}, {"Id": "y", "Type": "Audio"}]},
+            json={
+                "Items": [{"Id": "x", "Type": "Audio"}, {"Id": "y", "Type": "Audio"}]
+            },
         )
 
     src = _source(handler)
@@ -327,26 +330,17 @@ async def test_stream_cleanup_closes_upstream():
 
 # --- registry wiring ---
 
-_CONFIG = textwrap.dedent(
-    """
-    sources:
-      - id: jellyfin-main
-        type: jellyfin
-        base_url: http://jellyfin.test
-    """
-)
 
-
-def test_registry_builds_jellyfin_with_api_key(tmp_path, monkeypatch):
-    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
-    # Key env is derived from the source id by source_api_key_env.
-    monkeypatch.setenv("BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY", "built-key")
-    path = tmp_path / "config.yaml"
-    path.write_text(_CONFIG)
-    settings = Settings(_env_file=None, config_path=str(path))
-
-    registry = SourceRegistry.from_settings(settings)
-    source = registry.get("jellyfin-main")
+async def test_registry_builds_jellyfin_with_api_key(services):
+    sealed = services.keyring.encrypt("built-key", source_aad(1))
+    add_source(
+        services.env.db_path,
+        1,
+        type="jellyfin",
+        settings='{"user_id": "u-1"}',
+        secret_encrypted=sealed,
+    )
+    source = await services.sources.get(1)
     assert isinstance(source, JellyfinSource)
     assert source._api_key == "built-key"
-    assert source._base_url == "http://jellyfin.test"
+    assert source._user_id == "u-1"

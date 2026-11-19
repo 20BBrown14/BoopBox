@@ -1,38 +1,29 @@
-"""FastAPI auth dependencies.
+"""FastAPI auth dependencies. Each accepts only its own credential type:
 
-Three principals, strictly separated — each dependency accepts only its own
-credential type and rejects the others:
+- `require_user`: user JWT in `Authorization: Bearer`. UI/human actions.
+- `require_device_ota`: device OTA secret as the HTTP Basic password.
+- `require_device_api`: device token in `Authorization: Bearer` plus
+  `X-Device-Id`.
 
-- `require_user`        — user JWT in `Authorization: Bearer <jwt>`. UI/human
-                          actions. Never satisfied by a device credential.
-- `require_device_ota`  — per-device OTA secret as the HTTP Basic password.
-                          Firmware bin fetch only.
-- `require_device_api`  — per-device token in `Authorization: Bearer <token>`.
-                          Device API routes only.
-
-Failures use the shared error vocabulary: 401 for missing/malformed credentials,
-403 for a present-but-rejected credential (bad secret, revoked device).
+401 means a missing or malformed credential, 403 a rejected one.
 """
 
 import base64
 import binascii
 
-from fastapi import Request
+from fastapi import Depends, Request
 
 from app.auth.jwt import InvalidToken, verify_user_jwt
-from app.config import get_settings
+from app.db import devices
+from app.db import users as user_rows
+from app.db.users import AuthUser
 from app.errors import ErrorCode, http_error
+from app.permissions import can
 from app.security import verify_secret
 from app.types.device import Device
 
 
 class AuthError(Exception):
-    """Raised by a dependency on auth failure; mapped to an HTTP error.
-
-    Carries an ErrorCode so the handler reuses the 401/403 mapping and scrubbed
-    messages. `scheme` sets the WWW-Authenticate challenge where one applies.
-    """
-
     def __init__(self, code: ErrorCode, *, scheme: str | None = None) -> None:
         self.code = code
         self.scheme = scheme
@@ -40,7 +31,6 @@ class AuthError(Exception):
 
 
 def _bearer(request: Request) -> str:
-    """Extract a bearer token, or raise unauthorized."""
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token.strip():
@@ -49,7 +39,6 @@ def _bearer(request: Request) -> str:
 
 
 def _basic(request: Request) -> tuple[str, str]:
-    """Extract (username, password) from a Basic header, or raise unauthorized."""
     header = request.headers.get("authorization", "")
     scheme, _, encoded = header.partition(" ")
     if scheme.lower() != "basic" or not encoded.strip():
@@ -64,36 +53,61 @@ def _basic(request: Request) -> tuple[str, str]:
     return username, password
 
 
-async def require_user(request: Request) -> str:
-    """Verify a user JWT and return its subject. Rejects any non-user token."""
+async def _authenticate(request: Request) -> AuthUser:
     token = _bearer(request)
-    settings = get_settings()
+    secret = await request.app.state.settings.get("secrets.auth_token")
     try:
-        return verify_user_jwt(token, secret=settings.jwt_secret)
+        user_id, version = verify_user_jwt(token, secret=secret)
     except InvalidToken:
-        # A present-but-invalid bearer (bad signature, expired, wrong audience,
-        # or a device token) is a rejection, not a malformed request.
         raise AuthError(ErrorCode.forbidden) from None
+    async with request.app.state.db.read() as conn:
+        user = await user_rows.get_active(conn, user_id)
+    if user is None or user.token_version != version:
+        raise AuthError(ErrorCode.forbidden)
+    return user
+
+
+async def require_user_allow_password_change(request: Request) -> AuthUser:
+    """Like require_user, but also admits a user who must change their
+    password. Only the change-password route uses it."""
+    return await _authenticate(request)
+
+
+async def require_user(request: Request) -> AuthUser:
+    user = await _authenticate(request)
+    if user.must_change_password:
+        raise AuthError(ErrorCode.forbidden)
+    return user
+
+
+def require_permission(permission: str, device_param: str | None = None):
+    """Dependency factory: a user holding `permission`, globally or on the
+    device named by the `device_param` path parameter."""
+
+    async def dependency(
+        request: Request,
+        user: AuthUser = Depends(require_user),  # noqa: B008
+    ) -> AuthUser:
+        device_id = request.path_params.get(device_param) if device_param else None
+        async with request.app.state.db.read() as conn:
+            allowed = await can(conn, user, permission, device_id)
+        if not allowed:
+            raise AuthError(ErrorCode.forbidden)
+        return user
+
+    return dependency
 
 
 async def _load_live_device(request: Request, device_id: str) -> Device:
-    """Load a device and reject a missing or revoked one as forbidden.
-
-    `revoked` is the server-side kill switch: a revoked device fails immediately
-    on every credential it holds, with no box interaction.
-    """
-    device = await request.app.state.devices.get(device_id)
+    async with request.app.state.db.read() as conn:
+        device = await devices.get(conn, device_id)
     if device is None or device.revoked:
         raise AuthError(ErrorCode.forbidden)
     return device
 
 
 async def require_device_ota(request: Request) -> Device:
-    """Verify a device's OTA secret (HTTP Basic password) and return the device.
-
-    Basic username is the device id; the password is the flashed OTA secret,
-    checked against the stored hash. Guards the firmware bin fetch only.
-    """
+    """Basic username is the device id, password the flashed OTA secret."""
     device_id, secret = _basic(request)
     device = await _load_live_device(request, device_id)
     if not verify_secret(secret, device.ota_secret_hash):
@@ -102,13 +116,6 @@ async def require_device_ota(request: Request) -> Device:
 
 
 async def require_device_api(request: Request) -> Device:
-    """Verify a device API token (Authorization: Bearer) and return the device.
-
-    The device id is carried in the `X-Device-Id` header alongside the bearer
-    token; the token is checked against the stored device-token hash. This
-    header carrier is a provisional seam — the first real device API endpoint
-    pins the final convention. Guards device API routes only (never firmware).
-    """
     token = _bearer(request)
     device_id = request.headers.get("x-device-id", "").strip()
     if not device_id:
@@ -120,7 +127,6 @@ async def require_device_api(request: Request) -> Device:
 
 
 def auth_error_response(err: AuthError):
-    """Build the JSON error response for an AuthError (shared by the handler)."""
     body, status = http_error(err.code)
     headers = {"WWW-Authenticate": err.scheme} if err.scheme else None
     return body, status, headers

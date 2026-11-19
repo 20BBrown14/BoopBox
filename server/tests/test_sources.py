@@ -1,11 +1,10 @@
-import textwrap
-
 import pytest
 
-from app.config import Settings
+from app.crypto import source_aad
 from app.errors import ErrorCode
-from app.sources import FakeSource, SourceRegistry
+from app.sources import FakeSource, register_source_type
 from app.types.source import Range, SourceError
+from tests.conftest import add_source, run_sql
 
 ITEM = "fake-item"
 
@@ -124,31 +123,52 @@ async def test_cleanup_runs_on_context_exit():
 
 # --- Registry ---
 
-_CONFIG = textwrap.dedent(
-    """
-    sources:
-      - id: fake-main
-        type: fake
-        base_url: http://unused
-    """
+
+async def _registry_error(services, source_id) -> ErrorCode:
+    with pytest.raises(SourceError) as exc:
+        await services.sources.get(source_id)
+    return exc.value.code
+
+
+async def test_registry_builds_live_enabled_source(services):
+    add_source(services.env.db_path, 1)
+    assert isinstance(await services.sources.get(1), FakeSource)
+
+
+@pytest.mark.parametrize(
+    "row", [{}, {"enabled": False}, {"deleted": True}, {"type": "nope"}]
 )
+async def test_registry_refuses_unusable_source(services, row):
+    if row:
+        add_source(services.env.db_path, 1, **row)
+    assert await _registry_error(services, 1) is ErrorCode.source_unavailable
 
 
-def _settings(tmp_path, monkeypatch) -> Settings:
-    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
-    path = tmp_path / "config.yaml"
-    path.write_text(_CONFIG)
-    return Settings(_env_file=None, config_path=str(path))
+async def test_registry_caches_and_rebuilds_on_change(services):
+    db_path = services.env.db_path
+    add_source(db_path, 1)
+    first = await services.sources.get(1)
+    assert await services.sources.get(1) is first
+    run_sql(db_path, "UPDATE media_sources SET base_url = 'http://moved' WHERE id = 1")
+    assert await services.sources.get(1) is not first
 
 
-def test_registry_resolves_configured_source(tmp_path, monkeypatch):
-    settings = _settings(tmp_path, monkeypatch)
-    registry = SourceRegistry.from_settings(settings)
-    assert isinstance(registry.get("fake-main"), FakeSource)
+async def test_registry_decrypts_credential_bound_to_source(services):
+    seen = {}
 
+    def build(row, secret, options):
+        seen[row.id] = (secret, options)
+        return FakeSource()
 
-def test_registry_unknown_id_raises(tmp_path, monkeypatch):
-    settings = _settings(tmp_path, monkeypatch)
-    registry = SourceRegistry.from_settings(settings)
-    with pytest.raises(KeyError):
-        registry.get("nope")
+    register_source_type("capture", build)
+    db_path = services.env.db_path
+    sealed = services.keyring.encrypt("api-key-1", source_aad(1))
+    add_source(
+        db_path, 1, type="capture", settings='{"user_id": "u"}', secret_encrypted=sealed
+    )
+    # The same ciphertext copied to another source must not decrypt there.
+    add_source(db_path, 2, type="capture", secret_encrypted=sealed)
+
+    await services.sources.get(1)
+    assert seen[1] == ("api-key-1", {"user_id": "u"})
+    assert await _registry_error(services, 2) is ErrorCode.source_unavailable

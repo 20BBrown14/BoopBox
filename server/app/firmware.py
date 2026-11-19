@@ -99,12 +99,17 @@ class FirmwareCache:
     def version(self) -> str:
         return self._version
 
+    def set_version(self, version: str) -> None:
+        if version != self._version:
+            self._version = version
+            self.rebuild()
+
     def _current_mtimes(self, bins: dict[str, Path]) -> dict[str, int]:
         return {chip: path.stat().st_mtime_ns for chip, path in bins.items()}
 
     def rebuild(self) -> None:
         """Unconditionally rescan disk and rebuild the manifest + index."""
-        bins = _scan(self._dir, self._version)
+        bins = _scan(self._dir, self._version) if self._version else {}
         builds = []
         index: dict[str, IndexEntry] = {}
         mtimes: dict[str, int] = {}
@@ -125,7 +130,7 @@ class FirmwareCache:
             index[chip] = IndexEntry(version=self._version, path=served, md5=md5)
             mtimes[chip] = path.stat().st_mtime_ns
 
-        if not builds:
+        if not builds and self._version:
             logger.warning(
                 "no firmware bins at version %s under %s; serving empty manifest",
                 self._version,
@@ -142,7 +147,7 @@ class FirmwareCache:
 
     def _refresh_if_stale(self) -> None:
         """Rebuild only if the on-disk bin set or any bin's mtime has changed."""
-        bins = _scan(self._dir, self._version)
+        bins = _scan(self._dir, self._version) if self._version else {}
         if self._current_mtimes(bins) != self._mtimes:
             self.rebuild()
 

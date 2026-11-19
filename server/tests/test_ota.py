@@ -1,25 +1,16 @@
 import hashlib
 import os
-import textwrap
 import time
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app import firmware as firmware_mod
-from app.config import get_settings
 from app.firmware import FirmwareCache
 from app.main import create_app
+from tests.conftest import add_device
 
 VERSION = "0.1.0"
-CONFIG = textwrap.dedent(
-    f"""
-    sources: []
-    mappings: {{}}
-    ota:
-      manifest_version: "{VERSION}"
-    """
-)
 
 
 def _write_bin(firmware_dir, chip: str, version: str, data: bytes) -> None:
@@ -28,34 +19,28 @@ def _write_bin(firmware_dir, chip: str, version: str, data: bytes) -> None:
     (chip_dir / f"boopbox-{version}.bin").write_bytes(data)
 
 
-@pytest.fixture
-def firmware_dir(tmp_path):
-    d = tmp_path / "firmware-bins"
-    d.mkdir()
-    return d
-
-
 OTA_SECRET = "seed-ota-secret"
+DEVICE_ID = "boop-test"
 
 
 @pytest.fixture
-def client(tmp_path, firmware_dir, monkeypatch):
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(CONFIG)
-    monkeypatch.setenv("BOOPBOX_STREAM_SECRET", "s3cret")
-    monkeypatch.setenv("BOOPBOX_CONFIG_PATH", str(config_path))
-    monkeypatch.setenv("BOOPBOX_DB_PATH", str(tmp_path / "devices.db"))
-    monkeypatch.setenv("BOOPBOX_FIRMWARE_DIR", str(firmware_dir))
-    monkeypatch.setenv("BOOPBOX_SEED_DEVICE_OTA_SECRET", OTA_SECRET)
-    get_settings.cache_clear()
+def client(env, monkeypatch):
+    monkeypatch.setenv("BOOPBOX_OTA_MANIFEST_VERSION", VERSION)
     with TestClient(create_app()) as c:
+        c.db_path = env.db_path
+        add_device(env.db_path, DEVICE_ID, ota_secret=OTA_SECRET)
         yield c
-    get_settings.cache_clear()
+
+
+@pytest.fixture
+def firmware_dir(env):
+    from pathlib import Path
+
+    return Path(env.firmware_dir)
 
 
 def _ota_auth():
-    """HTTP Basic auth for the seed device's OTA bin fetch."""
-    return (get_settings().seed_device_id, OTA_SECRET)
+    return (DEVICE_ID, OTA_SECRET)
 
 
 # --- Generator / index unit tests (no HTTP) ---
@@ -211,7 +196,7 @@ def test_firmware_wrong_secret_forbidden(client, firmware_dir):
     _write_bin(firmware_dir, "esp32s3", VERSION, b"data")
     r = client.get(
         f"/firmware/esp32s3/boopbox-{VERSION}.bin",
-        auth=(get_settings().seed_device_id, "wrong-secret"),
+        auth=(DEVICE_ID, "wrong-secret"),
     )
     assert r.status_code == 403
 
@@ -234,3 +219,18 @@ def test_manifest_wins_over_static_file(client, firmware_dir):
     body = r.json()
     assert "stray" not in body
     assert body["name"] == "BoopBox"
+
+
+def test_manifest_404_while_no_version_set(client, monkeypatch):
+    monkeypatch.delenv("BOOPBOX_OTA_MANIFEST_VERSION")
+    client.app.state.settings._env.pop("ota.manifest_version")
+    assert client.get("/firmware/manifest.json").status_code == 404
+
+
+def test_revoked_device_cannot_fetch_firmware(client, firmware_dir):
+    _write_bin(firmware_dir, "esp32s3", VERSION, b"bin")
+    add_device(client.db_path, "boop-revoked", ota_secret="s", revoked=True)
+    r = client.get(
+        f"/firmware/esp32s3/boopbox-{VERSION}.bin", auth=("boop-revoked", "s")
+    )
+    assert r.status_code == 403

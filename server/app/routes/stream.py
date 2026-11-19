@@ -8,7 +8,6 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.config import get_settings
 from app.errors import ErrorCode, http_error
 from app.stream_token import verify
 from app.types.source import Range, SourceError, StreamResponse
@@ -79,12 +78,11 @@ async def _proxy(resp: StreamResponse):
 
 @router.get("/stream")
 async def stream(request: Request, sig: str | None = None):
-    settings = get_settings()
-
     if not sig:
         return _json_error(ErrorCode.unauthorized)
 
-    result = verify(sig, now=int(time.time()), secret=settings.stream_secret)
+    secret = await request.app.state.settings.get("secrets.stream")
+    result = verify(sig, now=int(time.time()), secret=secret)
     if isinstance(result, ErrorCode):
         return _json_error(result)
     claims: StreamClaims = result
@@ -92,7 +90,13 @@ async def stream(request: Request, sig: str | None = None):
     # Provenance only — never used to authorize the requester.
     logger.info("stream claim device=%s source=%s", claims.device, claims.source)
 
-    source = request.app.state.sources.get(claims.source)
+    try:
+        source = await request.app.state.sources.get(int(claims.source))
+    except ValueError:
+        return _json_error(ErrorCode.source_unavailable)
+    except SourceError as err:
+        logger.warning("stream source lookup failed: %s", err.log_detail)
+        return _json_error(err.code)
 
     range_header = request.headers.get("range")
     byte_range: Range | None = None

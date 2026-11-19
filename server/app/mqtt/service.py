@@ -1,7 +1,7 @@
 """The MQTT service: aiomqtt client on the app's single loop.
 
 Owns one background task that connects, subscribes `boopbox/+/boop`, and
-dispatches each boop through `build_response` to exactly one publish. A
+dispatches each boop through `handle_boop` to exactly one publish. A
 reconnect loop keeps a broker blip from permanently ending message handling.
 Start/stop are driven by the app lifespan.
 """
@@ -15,12 +15,18 @@ from collections.abc import Awaitable, Callable
 
 import aiomqtt
 
-from app.config import Settings
-from app.db.devices import DeviceRepository
+from app.db import boops, devices, mappings
+from app.db.engine import Database
+from app.db.timestamps import timestamp
 from app.models import Cmd, Error, FlashCmd, Play, VersionReply
-from app.mqtt.handler import build_response, parse_version_reply
+from app.mqtt.handler import (
+    MAX_PAYLOAD_BYTES,
+    BoopResult,
+    handle_boop,
+    parse_version_reply,
+)
 from app.mqtt.publish import publish_cmd, publish_error, publish_flash, publish_play
-from app.sources import SourceRegistry
+from app.settings import SettingsStore
 
 logger = logging.getLogger(__name__)
 
@@ -37,19 +43,16 @@ _RECONNECT_DELAY_SECONDS = 5
 VersionReplyHandler = Callable[[str, VersionReply], Awaitable[None]]
 
 
-def _build_client(settings: Settings) -> aiomqtt.Client:
-    tls_params: aiomqtt.TLSParameters | None = None
-    if settings.mqtt_tls:
-        tls_params = aiomqtt.TLSParameters(
-            ca_certs=settings.mqtt_tls_ca or None,
-            cert_reqs=ssl.CERT_REQUIRED,
-        )
+def _build_client(values: dict) -> aiomqtt.Client:
+    tls_context: ssl.SSLContext | None = None
+    if values["mqtt.tls"]:
+        tls_context = ssl.create_default_context(cadata=values["mqtt.tls_ca"] or None)
     return aiomqtt.Client(
-        hostname=settings.mqtt_host,
-        port=settings.mqtt_port,
-        username=settings.mqtt_username or None,
-        password=settings.mqtt_password or None,
-        tls_params=tls_params,
+        hostname=values["mqtt.host"],
+        port=values["mqtt.port"],
+        username=values["mqtt.username"] or None,
+        password=values["mqtt.password"] or None,
+        tls_context=tls_context,
     )
 
 
@@ -76,17 +79,17 @@ class MqttService:
 
     def __init__(
         self,
-        settings: Settings,
-        sources: SourceRegistry,
-        devices: DeviceRepository,
+        db: Database,
+        settings: SettingsStore,
+        sources,
         *,
         client_factory=_build_client,
         rng: random.Random | None = None,
         on_version_reply: VersionReplyHandler | None = None,
     ) -> None:
+        self._db = db
         self._settings = settings
         self._sources = sources
-        self._devices = devices
         self._client_factory = client_factory
         self._rng = rng or random.Random()
         self._task: asyncio.Task | None = None
@@ -118,14 +121,21 @@ class MqttService:
         """Connect/subscribe/consume with reconnect until stop is requested."""
         while not self._stopping.is_set():
             try:
-                async with self._client_factory(self._settings) as client:
+                values = await self._settings.snapshot()
+                async with self._client_factory(values) as client:
                     self.client = client
                     for topic in SUBSCRIPTIONS:
                         await client.subscribe(topic)
                     logger.info("mqtt connected; subscribed %s", SUBSCRIPTIONS)
                     async for message in client.messages:
-                        await self._dispatch(client, message)
-            except aiomqtt.MqttError as err:
+                        try:
+                            await self._dispatch(client, message)
+                        except aiomqtt.MqttError:
+                            raise
+                        except Exception:
+                            logger.exception("mqtt: handling %s failed", message.topic)
+            except Exception as err:
+                # Also catches a bad TLS CA setting, so fixing it recovers.
                 self.client = None
                 if self._stopping.is_set():
                     break
@@ -152,52 +162,66 @@ class MqttService:
         device_id, suffix = route
         payload = message.payload
         raw = bytes(payload) if isinstance(payload, (bytes, bytearray)) else b""
+        if len(raw) > MAX_PAYLOAD_BYTES:
+            logger.warning("mqtt: %d-byte payload on %r, dropping", len(raw), topic)
+            return
+        if suffix not in ("boop", "version"):
+            logger.warning("mqtt: unexpected topic suffix %r, ignoring", topic)
+            return
+
+        # Unknown, deleted and revoked devices are dropped before anything else.
+        async with self._db.read() as conn:
+            device = await devices.get(conn, device_id)
+        if device is None or device.revoked:
+            logger.info("mqtt: dropping %s from inactive device %r", suffix, device_id)
+            return
 
         if suffix == "boop":
             await self._handle_boop(client, device_id, raw)
-        elif suffix == "version":
-            await self._handle_version(device_id, raw)
         else:
-            logger.warning("mqtt: unexpected topic suffix %r, ignoring", topic)
+            await self._handle_version(device_id, raw)
 
     async def _handle_boop(
         self, client: aiomqtt.Client, device_id: str, raw: bytes
     ) -> None:
-        # Exactly one response per boop: build_response returns one model.
-        response = await build_response(
+        result = await handle_boop(
             device_id,
             raw,
-            self._settings,
-            self._sources,
+            db=self._db,
+            sources=self._sources,
+            settings=await self._settings.snapshot(),
             rng=self._rng,
         )
-        if isinstance(response, Play):
-            await publish_play(client, device_id, response)
-        elif isinstance(response, Error):
-            await publish_error(client, device_id, response)
+        if isinstance(result.response, Play):
+            await publish_play(client, device_id, result.response)
+        elif isinstance(result.response, Error):
+            await publish_error(client, device_id, result.response)
 
-        # Stamp last_seen off-loop (aiosqlite runs off the loop thread).
+        # History is best-effort: a failed write never drops the response.
         try:
-            await self._devices.update_last_seen(device_id)
-        except Exception:  # last_seen is best-effort; never drop the response
-            logger.exception("mqtt: last_seen update failed for %s", device_id)
+            await self._record(device_id, result)
+        except Exception:
+            logger.exception("mqtt: recording boop from %s failed", device_id)
+
+    async def _record(self, device_id: str, result: BoopResult) -> None:
+        now = timestamp()
+        async with self._db.write() as conn:
+            for entry_id, status in result.entry_status.items():
+                await mappings.set_entry_status(conn, entry_id, status, now)
+            if result.record is not None:
+                await boops.record(conn, result.record, now)
+            await devices.touch(conn, device_id, now)
 
     async def _handle_version(self, device_id: str, raw: bytes) -> None:
-        """Parse a `/version` reply, stamp the DB, and hand it to the push policy.
-
-        Never publishes a response itself — a version reply is request/response
-        telemetry, not the boop->play/error contract. The flash decision lives
-        behind `on_version_reply`, which reuses this service's publishers.
-        """
+        """Never publishes; the flash decision lives behind on_version_reply."""
         reply = parse_version_reply(device_id, raw)
         if reply is None:
             return
-
-        # Cache/telemetry only (not the decision input); best-effort off-loop.
         try:
-            await self._devices.update_last_seen(
-                device_id, firmware_version=reply.firmware
-            )
+            async with self._db.write() as conn:
+                await devices.touch(
+                    conn, device_id, timestamp(), firmware_version=reply.firmware
+                )
         except Exception:
             logger.exception("mqtt: firmware stamp failed for %s", device_id)
 

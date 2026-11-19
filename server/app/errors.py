@@ -20,6 +20,7 @@ class ErrorCode(StrEnum):
     unsupported_version = "unsupported_version"
     unauthorized = "unauthorized"
     forbidden = "forbidden"
+    invalid_request = "invalid_request"
 
 
 # HTTP-surfaced codes only. unknown_tag and unsupported_version are MQTT-only and
@@ -30,6 +31,7 @@ HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.forbidden: 403,
     ErrorCode.item_unavailable: 404,
     ErrorCode.source_unavailable: 502,
+    ErrorCode.invalid_request: 422,
 }
 
 
@@ -50,6 +52,7 @@ _DEFAULT_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.unsupported_version: "unsupported protocol version",
     ErrorCode.unauthorized: "missing or malformed stream token",
     ErrorCode.forbidden: "stream token rejected",
+    ErrorCode.invalid_request: "the request is invalid",
 }
 
 

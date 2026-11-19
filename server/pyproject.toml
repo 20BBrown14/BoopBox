@@ -12,11 +12,14 @@ dependencies = [
     "uvicorn[standard]==0.54.0",
     "aiomqtt==2.5.1",
     "aiosqlite==0.22.1",
+    "sqlalchemy[asyncio]==2.1.9",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
     "httpx2==2.16.0",
-    "pyyaml==6.0.3",
     "pyjwt==2.15.1",
+    "argon2-cffi==25.1.0",
+    "cryptography==50.0.2",
+    "python-dotenv==1.2.4",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +28,9 @@ dev = [
     "pytest-asyncio==1.4.0",
     "ruff==0.17.1",
 ]
+
+[project.scripts]
+boopbox = "app.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

@@ -8,7 +8,7 @@ site doing so.
 
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.errors import ErrorCode
 from app.protocol import PROTOCOL_VERSION
@@ -33,7 +33,7 @@ class Boop(BaseModel):
     """
 
     v: int
-    id: str
+    id: str = Field(max_length=64)
     slug: str
     uid: str
     ts: int  # unix seconds (box SNTP clock), informational only
@@ -115,5 +115,5 @@ class VersionReply(BaseModel):
     """
 
     v: int
-    firmware: str
+    firmware: str = Field(min_length=1, max_length=32)
     chip: str

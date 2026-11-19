@@ -17,9 +17,7 @@ def test_http_status_mapping():
     assert http_status_for(ErrorCode.source_unavailable) == 502
 
 
-@pytest.mark.parametrize(
-    "code", [ErrorCode.unknown_tag, ErrorCode.unsupported_version]
-)
+@pytest.mark.parametrize("code", [ErrorCode.unknown_tag, ErrorCode.unsupported_version])
 def test_mqtt_only_codes_have_no_http_status(code):
     with pytest.raises(KeyError):
         http_status_for(code)

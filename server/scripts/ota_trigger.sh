@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Trigger the OTA version check. Usage: ota_trigger.sh [device_id]
-# Reads BOOPBOX_AUTH_USERNAME/PASSWORD from .env; BASE overrides the server URL.
+# Login from BOOP_USER / BOOP_PASSWORD, prompting for whatever is unset.
+# BASE overrides the server URL.
 set -euo pipefail
-
 cd "$(dirname "$0")/.."
-env_get() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+
+env_get() { grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- || true; }
 
 BASE="${BASE:-$(env_get BOOPBOX_PUBLIC_BASE_URL)}"
 BASE="${BASE:-http://127.0.0.1:9685}"
-USERNAME="$(env_get BOOPBOX_AUTH_USERNAME)"
-PASSWORD="$(env_get BOOPBOX_AUTH_PASSWORD)"
+USERNAME="${BOOP_USER:-}"
+PASSWORD="${BOOP_PASSWORD:-}"
+[[ -n "$USERNAME" ]] || read -rp "Username: " USERNAME
+[[ -n "$PASSWORD" ]] || { read -rsp "Password: " PASSWORD; echo; }
 
 TOKEN="$(python3 -c 'import json,sys; print(json.dumps({"username":sys.argv[1],"password":sys.argv[2]}))' "$USERNAME" "$PASSWORD" \
   | curl -fsS -X POST "$BASE/auth/token" -H 'Content-Type: application/json' -d @- \

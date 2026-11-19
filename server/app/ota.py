@@ -16,6 +16,7 @@ from app.firmware import FirmwareCache
 from app.models import Cmd, CmdName, FlashCmd, VersionReply
 from app.mqtt.publish import BROADCAST
 from app.mqtt.service import MqttService
+from app.settings import SettingsStore
 
 logger = logging.getLogger(__name__)
 
@@ -24,34 +25,35 @@ class OtaPolicy:
     def __init__(
         self,
         firmware: FirmwareCache,
-        target_version: str,
+        settings: SettingsStore,
         mqtt: MqttService,
         *,
         auto_push_on_publish: bool = False,
     ) -> None:
         self._firmware = firmware
-        self._target_version = target_version
+        self._settings = settings
         self._mqtt = mqtt
         self._auto_push_on_publish = auto_push_on_publish
 
     async def on_version_reply(self, device_id: str, reply: VersionReply) -> None:
         """Compare-and-maybe-flash for one `/version` reply.
 
-        The same handler serves solicited and unsolicited replies. A box at the
-        target is left alone. A stale box is flashed with the bin matching its
-        own reported chip; an unknown chip (or no bin in the index) is logged and
-        skipped, never guessed — a wrong-chip flash bricks the box.
+        A box at the target is left alone. A stale box is flashed with the bin
+        for its own reported chip; an unknown chip, or no bin, is logged and
+        skipped, never guessed, because a wrong-chip flash bricks the box. No
+        target version means no flashing at all.
         """
+        target = await self._settings.get("ota.manifest_version")
         logger.info(
             "ota: %s reports firmware %s chip %s (target %s)",
             device_id,
             reply.firmware,
             reply.chip,
-            self._target_version,
+            target or "unset",
         )
-        if reply.firmware == self._target_version:
+        if not target or reply.firmware == target:
             return
-
+        self._firmware.set_version(target)
         entry = self._firmware.index(reply.chip)
         if entry is None:
             logger.info(
@@ -61,13 +63,12 @@ class OtaPolicy:
                 reply.firmware,
             )
             return
-
         flash = FlashCmd(url=entry.path, md5=entry.md5)
         logger.info(
             "ota: flashing %s (%s -> %s, chip %s)",
             device_id,
             reply.firmware,
-            self._target_version,
+            target,
             reply.chip,
         )
         await self._mqtt.send_flash(device_id, flash)

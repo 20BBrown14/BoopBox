@@ -7,9 +7,7 @@ dependencies so dependent tests stay stable.
 
 from collections.abc import AsyncIterator
 
-from app.config import Settings
 from app.errors import ErrorCode
-from app.types.config import SourceConfig
 from app.types.source import Range, SourceError
 
 _CONTENT_TYPE = "audio/mpeg"
@@ -91,9 +89,7 @@ class FakeSource:
 
     async def members(self, collection: str) -> list[str]:
         if self._fail_with is not None:
-            raise SourceError(
-                self._fail_with, log_detail=f"fake forced {collection!r}"
-            )
+            raise SourceError(self._fail_with, log_detail=f"fake forced {collection!r}")
         members = self._collections.get(collection)
         if members is None:
             raise SourceError(
@@ -108,6 +104,5 @@ class FakeSource:
         return list(members)
 
 
-def _build_fake(config: SourceConfig, settings: Settings) -> "FakeSource":
-    # The fake needs no base_url/secret; args accepted for the builder shape.
+def _build_fake(row, secret, options) -> "FakeSource":
     return FakeSource()

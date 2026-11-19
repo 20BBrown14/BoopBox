@@ -1,19 +1,22 @@
-"""POST /auth/token — exchange the configured user credential for a JWT.
+"""POST /auth/token: log in with a local username and password.
+POST /auth/password: change your own password (required after first login)."""
 
-The config-file auth has one user: the credential in `BOOPBOX_AUTH_*`. A correct
-username+password returns a short-lived bearer token the API verifies on
-user-facing routes. Wrong or unconfigured credentials return a generic 401 that
-does not distinguish "no such user" from "bad password".
-"""
-
-import hmac
-
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.auth.deps import AuthError, require_user_allow_password_change
 from app.auth.jwt import issue_user_jwt, now_seconds
-from app.config import get_settings
+from app.auth.login import client_address, login_local
+from app.auth.passwords import (
+    hash_password,
+    normalize_password,
+    password_problem,
+    verify_password,
+)
+from app.db import users
+from app.db.timestamps import timestamp
+from app.db.users import AuthUser
 from app.errors import ErrorCode, http_error
 
 router = APIRouter()
@@ -24,39 +27,83 @@ class TokenRequest(BaseModel):
     password: str
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
-def _credentials_match(username: str, password: str, settings) -> bool:
-    """Constant-time credential check. False when auth is unconfigured, so a
-    blank-credential deployment rejects every login rather than accepting one."""
-    if not settings.auth_username or not settings.auth_password:
-        return False
-    user_ok = hmac.compare_digest(username, settings.auth_username)
-    pass_ok = hmac.compare_digest(password, settings.auth_password)
-    return user_ok and pass_ok
+def _token_response(user_id: int, version: int, settings: dict, must_change: bool):
+    ttl = settings["auth.token_lifetime_hours"] * 3600
+    token = issue_user_jwt(
+        user_id,
+        version=version,
+        secret=settings["secrets.auth_token"],
+        ttl_seconds=ttl,
+        now=now_seconds(),
+    )
+    return JSONResponse(
+        {
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": ttl,
+            "must_change_password": must_change,
+        }
+    )
 
 
 @router.post("/auth/token")
 async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
-    settings = get_settings()
-    if not _credentials_match(body.username, body.password, settings):
-        err_body, status = http_error(ErrorCode.unauthorized)
-        return JSONResponse(
-            err_body,
-            status_code=status,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    now = now_seconds()
-    token = issue_user_jwt(
-        body.username,
-        secret=settings.jwt_secret,
-        ttl_seconds=settings.jwt_ttl_seconds,
-        now=now,
+    settings = await request.app.state.settings.snapshot()
+    user = await login_local(
+        request.app.state.db,
+        settings,
+        username=body.username,
+        password=body.password,
+        client_ip=client_address(
+            request.client.host if request.client else None,
+            request.headers.get("x-forwarded-for"),
+            settings["auth.trust_forwarded_header"],
+        ),
+        user_agent=request.headers.get("user-agent"),
     )
-    resp = TokenResponse(access_token=token, expires_in=settings.jwt_ttl_seconds)
-    return JSONResponse(resp.model_dump())
+    if user is None:
+        err_body, status = http_error(
+            ErrorCode.unauthorized, "invalid username or password"
+        )
+        return JSONResponse(
+            err_body, status_code=status, headers={"WWW-Authenticate": "Bearer"}
+        )
+    return _token_response(
+        user.id, user.token_version, settings, user.must_change_password
+    )
+
+
+@router.post("/auth/password")
+async def change_password(
+    request: Request,
+    body: PasswordChangeRequest,
+    user: AuthUser = Depends(require_user_allow_password_change),  # noqa: B008
+) -> JSONResponse:
+    db = request.app.state.db
+    if user.identity_id is None:
+        raise AuthError(ErrorCode.forbidden)
+    async with db.read() as conn:
+        stored = await users.get_secret_hash(conn, user.identity_id)
+    if stored is None or not await verify_password(
+        stored, normalize_password(body.current_password)
+    ):
+        raise AuthError(ErrorCode.forbidden)
+
+    new_password = normalize_password(body.new_password)
+    problem = password_problem(new_password)
+    if problem is not None:
+        err_body, status = http_error(ErrorCode.invalid_request, problem)
+        return JSONResponse(err_body, status_code=status)
+
+    new_hash = await hash_password(new_password)
+    async with db.write() as conn:
+        version = await users.change_password(
+            conn, user.id, user.identity_id, new_hash, timestamp()
+        )
+    settings = await request.app.state.settings.snapshot()
+    return _token_response(user.id, version, settings, False)

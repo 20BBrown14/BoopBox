@@ -1,29 +1,25 @@
-"""User-auth JWT mint + verify (HS256).
-
-The UI/API authenticates a user against the configured credential and receives a
-short-lived token signed with `jwt_secret`. The token carries a fixed audience
-(`AUDIENCE`) so a token minted for any other purpose can never satisfy user
-auth; verification pins the algorithm and required claims.
-"""
+"""User login tokens (HS256). A token carries the user id and the user's
+token_version when it was issued; bumping the version revokes it."""
 
 import time
 
 import jwt
 
-# Pins what a user token is for. Verification requires this audience, so only
-# tokens issued by issue_user_jwt verify — nothing else is accepted as a user.
+# Only tokens minted by issue_user_jwt carry this audience.
 AUDIENCE = "boopbox-user"
 _ALGORITHM = "HS256"
 
 
 class InvalidToken(Exception):
-    """A token failed verification (missing, malformed, expired, or wrong aud)."""
+    pass
 
 
-def issue_user_jwt(subject: str, *, secret: str, ttl_seconds: int, now: int) -> str:
-    """Mint a user token for `subject`, expiring `ttl_seconds` after `now`."""
+def issue_user_jwt(
+    user_id: int, *, version: int, secret: str, ttl_seconds: int, now: int
+) -> str:
     payload = {
-        "sub": subject,
+        "sub": str(user_id),
+        "ver": version,
         "aud": AUDIENCE,
         "iat": now,
         "exp": now + ttl_seconds,
@@ -31,13 +27,8 @@ def issue_user_jwt(subject: str, *, secret: str, ttl_seconds: int, now: int) -> 
     return jwt.encode(payload, secret, algorithm=_ALGORITHM)
 
 
-def verify_user_jwt(token: str, *, secret: str) -> str:
-    """Verify a user token and return its subject, or raise InvalidToken.
-
-    Signature, expiry, and audience are all enforced (PyJWT validates `exp` and
-    `aud` when given). A blank secret is treated as misconfiguration and rejects
-    everything rather than verifying against an empty key.
-    """
+def verify_user_jwt(token: str, *, secret: str) -> tuple[int, int]:
+    """Return (user_id, token_version) or raise InvalidToken."""
     if not secret:
         raise InvalidToken("user auth not configured")
     try:
@@ -46,11 +37,15 @@ def verify_user_jwt(token: str, *, secret: str) -> str:
             secret,
             algorithms=[_ALGORITHM],
             audience=AUDIENCE,
-            options={"require": ["exp", "sub", "aud"]},
+            options={"require": ["exp", "sub", "aud", "ver"]},
         )
-    except jwt.InvalidTokenError as err:
+        user_id = int(payload["sub"])
+        version = payload["ver"]
+    except (jwt.InvalidTokenError, ValueError) as err:
         raise InvalidToken(str(err)) from err
-    return payload["sub"]
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise InvalidToken("bad token version")
+    return user_id, version
 
 
 def now_seconds() -> int:
