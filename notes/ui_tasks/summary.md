@@ -32,7 +32,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 04 | `ApiError`, `field`, `not_found` / `conflict` codes | 2 Error shape | 01 | S |
 | [x] | 05 | Validation and 404 handlers | 2 | 04 | S |
 | [x] | 06 | Session cookie and CSRF helpers | 3 Browser session | 04 | S |
-| [ ] | 07 | Cookie authentication and CSRF in `require_user` | 3 | 06 | M |
+| [x] | 07 | Cookie authentication and CSRF in `require_user` | 3 | 06 | M |
 | [ ] | 08 | Guard for unauthenticated JSON posts | 3 | 04 | S |
 | [ ] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
 | [ ] | 10 | Password change for cookie sessions; `logout-all` | 3 | 09 | S |

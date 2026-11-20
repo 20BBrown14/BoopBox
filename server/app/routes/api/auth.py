@@ -14,6 +14,7 @@ from app.auth.passwords import (
     password_problem,
     verify_password,
 )
+from app.auth.session import require_json_same_origin
 from app.db import users
 from app.db.timestamps import timestamp
 from app.db.users import AuthUser
@@ -51,7 +52,7 @@ def _token_response(user_id: int, version: int, settings: dict, must_change: boo
     )
 
 
-@router.post("/auth/token")
+@router.post("/auth/token", dependencies=[Depends(require_json_same_origin)])
 async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
     settings = await request.app.state.settings.snapshot()
     user = await login_local(
