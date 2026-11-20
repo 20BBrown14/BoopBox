@@ -1,3 +1,5 @@
 {
-  "appName": "BoopBox"
+  "appName": "BoopBox",
+  "confirm": "Confirm",
+  "cancel": "Cancel"
 }

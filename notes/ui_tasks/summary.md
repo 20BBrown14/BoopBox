@@ -39,7 +39,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 11 | `GET /api/me` | 3 | 07 | M |
 | [x] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |
 | [x] | 13 | Vitest, React Testing Library, MSW | 4 | 12 | S |
-| [ ] | 14 | i18n setup | 4 | 13 | M |
+| [x] | 14 | i18n setup | 4 | 13 | M |
 | [ ] | 15 | Mantine and app providers | 4 | 14 | S |
 | [ ] | 16 | AppShell layout and routes | 4 | 15 | M |
 | [ ] | 17 | OpenAPI dump and type generation | 4 | 11, 12 | S |
@@ -123,9 +123,10 @@ These go beyond ui_design.md, or change it. Each is flagged again in its task.
 - **The grant editor gets device ids from `GET /api/permissions`** (task 48),
   because `GET /api/devices` only lists devices the caller can view. As a
   result, `users.manage` reveals every device's id and name.
-- **Mantine's `ColorSchemeScript` is left out** (task 15). It is an inline
-  script that the planned CSP (task 24) blocks. A light/dark flash on load
-  might show; it gets fixed only if it does (see deferred.md).
+- **Mantine's `ColorSchemeScript` ships as a file** (task 15). The inline
+  version is blocked by the planned CSP (task 24), so a Vite plugin renders
+  Mantine's component and serves its script as `/color-scheme.js`, loaded from
+  the `<head>`. That keeps `script-src 'self'`.
 - **Secret-returning mutations use `gcTime: 0` and are reset on close**
   (task 40). Otherwise TanStack keeps the result in its mutation cache for
   5 minutes.

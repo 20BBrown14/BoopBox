@@ -53,10 +53,6 @@ Left out of the admin-foundation milestone ([ui_design.md](ui_design.md)).
   admin-foundation lists are small enough to return whole.
 - **Revoking a single token.** Revocation is per user (`token_version`).
 - **Accessibility audit** beyond Mantine's defaults.
-- **Light/dark flash on page load**, only if it turns out to be noticeable.
-  Mantine's `ColorSchemeScript` is inline and blocked by the CSP. Fixes: load
-  the same code from a small file in `web/public/` in the `<head>`, or allow the
-  inline script by its SHA-256 hash in `script-src`.
 
 ### Translation
 

@@ -11,15 +11,19 @@ export function syncDocumentLanguage(language: string) {
   document.documentElement.lang = language;
 }
 
+// Each non-English file becomes its own chunk, fetched when chosen.
+const lazyLocales = import.meta.glob<Record<string, unknown>>(
+  ["../locales/*/*.json", "!../locales/en/*.json"],
+  { import: "default" },
+);
+
 i18n.on("languageChanged", syncDocumentLanguage);
 
 void i18n
   .use(LanguageDetector)
-  // Non-English languages are separate chunks, fetched when chosen.
   .use(
-    resourcesToBackend(
-      (language: string, namespace: string) =>
-        import(`../locales/${language}/${namespace}.json`),
+    resourcesToBackend((language: string, namespace: string) =>
+      lazyLocales[`../locales/${language}/${namespace}.json`]?.(),
     ),
   )
   .use(initReactI18next)

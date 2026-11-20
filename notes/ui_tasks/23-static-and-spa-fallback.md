@@ -17,8 +17,10 @@ route.
   - `/assets/*`: files with `Cache-Control: public, max-age=31536000, immutable`.
   - Catch-all `GET` / `HEAD`: reserved prefixes (`/api`, `/stream`, `/ota`,
     `/firmware`, `/health`, `/docs`, `/redoc`, `/openapi.json`) → JSON 404
-    `not_found`. An existing top-level file in `dist` (favicon and the like) is
-    served. Anything else → `index.html` with `Cache-Control: no-cache`.
+    `not_found`. An existing top-level file in `dist` (`color-scheme.js`,
+    favicon and the like) is served with
+    `Cache-Control: no-cache`, since those names carry no content hash.
+    Anything else → `index.html` with `Cache-Control: no-cache`.
   - Paths are resolved inside `web_dir` only; `..` can't escape it.
 
 ## Tests
