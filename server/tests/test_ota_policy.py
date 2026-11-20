@@ -195,6 +195,8 @@ def test_update_unknown_device_is_404(client):
         headers=_user_headers(client),
     )
     assert r.status_code == 404
+    assert r.json()["code"] == "not_found"
+    assert r.json()["field"] == "device_id"
     assert recorder.queries == []
 
 

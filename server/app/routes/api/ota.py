@@ -8,11 +8,12 @@ device id is unknown).
 Needs the `ota.manage` permission: a human/UI action, never a box-facing path.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from app.auth import require_permission
 from app.db import devices
+from app.errors import ApiError, ErrorCode
 
 router = APIRouter()
 
@@ -33,7 +34,7 @@ async def ota_update(
         async with request.app.state.db.read() as conn:
             device = await devices.get(conn, body.device_id)
         if device is None:
-            raise HTTPException(status_code=404, detail="unknown device")
+            raise ApiError(ErrorCode.not_found, "unknown device", field="device_id")
         await policy.query_version(body.device_id)
         return {"status": "queried", "device_id": body.device_id}
 
