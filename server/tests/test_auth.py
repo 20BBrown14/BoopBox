@@ -4,13 +4,14 @@ strict separation between the credential types."""
 import base64
 
 import pytest
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.testclient import TestClient
 
 from app.auth import require_device_api, require_user
 from app.auth.jwt import issue_user_jwt, now_seconds
 from app.auth.login import client_address
 from app.auth.passwords import _hasher
+from app.auth.session import CSRF_HEADER, SESSION_COOKIE, csrf_token
 from app.db.users import AuthUser
 from app.main import create_app
 from app.security import hash_secret
@@ -37,6 +38,14 @@ def client(env):
     @app.get("/_test/user")
     async def _user(user: AuthUser = Depends(require_user)):  # noqa: B008
         return {"user_id": user.id}
+
+    @app.get("/api/_test/user")
+    @app.post("/api/_test/user")
+    async def _api_user(
+        request: Request,
+        user: AuthUser = Depends(require_user),  # noqa: B008
+    ):
+        return {"user_id": user.id, "via": request.state.auth_via}
 
     with TestClient(app) as c:
         c.db_path = env.db_path
@@ -259,6 +268,79 @@ def test_owner_is_created_once_with_a_hashed_password(client):
     is_owner, subject, secret_hash, must_change = rows[0]
     assert (is_owner, subject, must_change) == (1, OWNER, 1)
     assert secret_hash.startswith("$argon2id$")
+
+
+# --- session cookie and CSRF ---
+
+
+def _auth_secret(client) -> str:
+    settings = client.app.state.settings
+    return client.portal.call(settings.get, "secrets.auth_token")
+
+
+def _cookie_session(client) -> str:
+    """Log in, then hold the JWT the way a browser would. Returns the CSRF value."""
+    token = _token(client)
+    client.cookies.set(SESSION_COOKIE, token)
+    return csrf_token(token, _auth_secret(client))
+
+
+def test_cookie_get_needs_no_csrf(client):
+    _cookie_session(client)
+    r = client.get("/api/_test/user")
+    assert r.status_code == 200
+    assert r.json() == {"user_id": 2, "via": "cookie"}
+
+
+@pytest.mark.parametrize("headers", [{}, {CSRF_HEADER: "wrong"}])
+def test_cookie_write_without_valid_csrf_is_403(client, headers):
+    _cookie_session(client)
+    r = client.post("/api/_test/user", headers=headers)
+    assert r.status_code == 403
+    assert r.json()["code"] == "forbidden"
+
+
+def test_cookie_write_with_csrf(client):
+    csrf = _cookie_session(client)
+    r = client.post("/api/_test/user", headers={CSRF_HEADER: csrf})
+    assert r.status_code == 200
+    assert r.json()["via"] == "cookie"
+
+
+def test_csrf_from_another_session_is_rejected(client):
+    secret = _auth_secret(client)
+    other_jwt = issue_user_jwt(
+        2, version=0, secret=secret, ttl_seconds=600, now=now_seconds() - 60
+    )
+    other = csrf_token(other_jwt, secret)
+    _cookie_session(client)
+    r = client.post("/api/_test/user", headers={CSRF_HEADER: other})
+    assert r.status_code == 403
+
+
+def test_bearer_write_needs_no_csrf(client):
+    r = client.post("/api/_test/user", headers=_bearer(_token(client)))
+    assert r.status_code == 200
+    assert r.json() == {"user_id": 2, "via": "bearer"}
+
+
+def test_header_wins_over_cookie(client):
+    _cookie_session(client)
+    r = client.get("/api/_test/user", headers=_bearer("not-a-token"))
+    assert r.status_code == 403
+    r = client.get("/api/_test/user", headers={"Authorization": "Basic abc"})
+    assert r.status_code == 401
+
+
+def test_cookie_checks_token_version(client):
+    _cookie_session(client)
+    run_sql(client.db_path, "UPDATE users SET token_version = token_version + 1")
+    assert client.get("/api/_test/user").status_code == 403
+
+
+def test_device_token_in_cookie_is_rejected(client):
+    client.cookies.set(SESSION_COOKIE, API_TOKEN)
+    assert client.get("/api/_test/user").status_code == 403
 
 
 def test_client_address():

@@ -12,6 +12,8 @@ other session.
 - `POST /api/auth/password`: when `request.state.auth_via == "cookie"`, respond
   `{must_change_password: false}` and set new cookies for the new
   `token_version`. Bearer callers keep today's body with `access_token`.
+- A wrong current password is 403 `forbidden` with `field = "current_password"`
+  (task 21 shows it on that field).
 - New repo function `users.bump_token_version(conn, user_id) -> int`.
 - `POST /api/auth/logout-all` (`require_user`): bump, then re-issue this
   session the same way (cookie or token body).

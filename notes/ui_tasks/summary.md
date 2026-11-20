@@ -29,9 +29,9 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 01 | `/api` router and the `/auth/*` move | 1 Move routes | — | S |
 | [x] | 02 | Move `POST /ota/update` to `/api/ota/update` | 1 | 01 | S |
 | [x] | 03 | Fix the README authentication section | 1 | 01, 02 | S |
-| [ ] | 04 | `ApiError`, `field`, `not_found` / `conflict` codes | 2 Error shape | 01 | S |
-| [ ] | 05 | Validation and 404 handlers | 2 | 04 | S |
-| [ ] | 06 | Session cookie and CSRF helpers | 3 Browser session | 04 | S |
+| [x] | 04 | `ApiError`, `field`, `not_found` / `conflict` codes | 2 Error shape | 01 | S |
+| [x] | 05 | Validation and 404 handlers | 2 | 04 | S |
+| [x] | 06 | Session cookie and CSRF helpers | 3 Browser session | 04 | S |
 | [ ] | 07 | Cookie authentication and CSRF in `require_user` | 3 | 06 | M |
 | [ ] | 08 | Guard for unauthenticated JSON posts | 3 | 04 | S |
 | [ ] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
