@@ -9,9 +9,15 @@ function burger(name: "Open navigation" | "Close navigation") {
   return screen.getByLabelText(name);
 }
 
-test("lists the nav items and marks the current one", () => {
+async function renderLayout(route: string) {
+  const result = renderWithProviders(<App />, { route });
+  await screen.findByRole("navigation", { name: "Main" });
+  return result;
+}
+
+test("lists the nav items and marks the current one", async () => {
   renderWithProviders(<App />, { route: "/users/7" });
-  const nav = screen.getByRole("navigation", { name: "Main" });
+  const nav = await screen.findByRole("navigation", { name: "Main" });
   const links = Array.from(nav.querySelectorAll("a")).map((a) => [
     a.textContent,
     a.getAttribute("href"),
@@ -32,7 +38,7 @@ test("lists the nav items and marks the current one", () => {
 });
 
 test("the burger toggles the nav", async () => {
-  const { user } = renderWithProviders(<App />, { route: "/devices" });
+  const { user } = await renderLayout("/devices");
   expect(burger("Open navigation")).toHaveAttribute("aria-expanded", "false");
 
   await user.click(burger("Open navigation"));
@@ -43,7 +49,7 @@ test("the burger toggles the nav", async () => {
 });
 
 test("choosing a nav item navigates and closes the nav", async () => {
-  const { user } = renderWithProviders(<App />, { route: "/devices" });
+  const { user } = await renderLayout("/devices");
   await user.click(burger("Open navigation"));
 
   await user.click(screen.getByRole("link", { name: "Account" }));

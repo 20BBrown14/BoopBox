@@ -4,7 +4,7 @@ import { App } from "./App";
 import { renderWithProviders } from "./test/render";
 
 function heading(name: string) {
-  return screen.getByRole("heading", { level: 1, name });
+  return screen.findByRole("heading", { level: 1, name });
 }
 
 test("renders inside the providers", () => {
@@ -12,9 +12,9 @@ test("renders inside the providers", () => {
   expect(document.documentElement).toHaveAttribute("data-mantine-color-scheme");
 });
 
-test("/ redirects to the devices page", () => {
+test("/ redirects to the devices page", async () => {
   renderWithProviders(<App />, { route: "/" });
-  expect(heading("Devices")).toBeInTheDocument();
+  expect(await heading("Devices")).toBeInTheDocument();
 });
 
 describe("routes inside the layout", () => {
@@ -25,9 +25,9 @@ describe("routes inside the layout", () => {
     ["/users/7", "User"],
     ["/server-settings", "Server settings"],
     ["/account", "Account"],
-  ])("%s", (route, title) => {
+  ])("%s", async (route, title) => {
     renderWithProviders(<App />, { route });
-    expect(heading(title)).toBeInTheDocument();
+    expect(await heading(title)).toBeInTheDocument();
     expect(
       screen.getByRole("navigation", { name: "Main" }),
     ).toBeInTheDocument();
@@ -39,16 +39,16 @@ describe("routes outside the layout", () => {
     ["/login", "Log in"],
     ["/change-password", "Change password"],
     ["/invite", "Invitation"],
-  ])("%s", (route, title) => {
+  ])("%s", async (route, title) => {
     renderWithProviders(<App />, { route });
-    expect(heading(title)).toBeInTheDocument();
+    expect(await heading(title)).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 });
 
-test("an unknown path renders NotFound", () => {
+test("an unknown path renders NotFound", async () => {
   renderWithProviders(<App />, { route: "/no/such/page" });
-  expect(heading("Page not found")).toBeInTheDocument();
+  expect(await heading("Page not found")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Back to devices" })).toHaveAttribute(
     "href",
     "/devices",

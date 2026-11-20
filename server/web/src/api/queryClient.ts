@@ -7,10 +7,9 @@ import {
 } from "@tanstack/react-query";
 import i18n from "../i18n";
 import { ApiError, NETWORK_CODE } from "./ApiError";
-import { getNavigation } from "./navigation";
+import { getNavigation, LOGIN_PATH, loginPath } from "./navigation";
 import { queryKeys } from "./queryKeys";
 
-const LOGIN_PATH = "/login";
 const MAX_RETRIES = 2;
 
 function retry(failureCount: number, error: Error): boolean {
@@ -27,8 +26,7 @@ function signOut(client: QueryClient) {
   if (here.pathname === LOGIN_PATH) return;
 
   client.clear();
-  const next = encodeURIComponent(here.pathname + here.search);
-  const to = `${LOGIN_PATH}?next=${next}`;
+  const to = loginPath(here);
   if (navigation) navigation.navigate(to, { replace: true });
   else globalThis.location.replace(to);
 }

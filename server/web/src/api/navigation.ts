@@ -13,3 +13,10 @@ export function registerNavigation(navigation: Navigation | null) {
 export function getNavigation(): Navigation | null {
   return current;
 }
+
+export const LOGIN_PATH = "/login";
+
+/** The login page, sending the person back to `from` afterwards. */
+export function loginPath(from: { pathname: string; search: string }): string {
+  return `${LOGIN_PATH}?next=${encodeURIComponent(from.pathname + from.search)}`;
+}

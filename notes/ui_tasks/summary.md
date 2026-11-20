@@ -43,7 +43,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 15 | Mantine and app providers | 4 | 14 | S |
 | [x] | 16 | AppShell layout and routes | 4 | 15 | M |
 | [x] | 17 | OpenAPI dump and type generation | 4 | 11, 12 | S |
-| [ ] | 18 | API client and query client | 4 | 15, 17 | M |
+| [x] | 18 | API client and query client | 4 | 15, 17 | M |
 | [ ] | 19 | Session, route guards, `can()` | 4 | 16, 18 | M |
 | [ ] | 20 | Form error helper and login screen | 4 | 19, 09 | S |
 | [ ] | 21 | Change password screen | 4 | 20, 10 | S |

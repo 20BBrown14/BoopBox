@@ -37,6 +37,15 @@ const middleware: Middleware = {
   },
 };
 
+/**
+ * The body of a successful call. Failures already threw, so a missing body is
+ * a route that returned nothing where the schema promised something.
+ */
+export function bodyOf<T>(result: { data?: T }): T {
+  if (result.data === undefined) throw new Error("response had no body");
+  return result.data;
+}
+
 export const api = createClient<paths>({
   baseUrl: globalThis.location.origin,
   // Looked up per call, so a test's fetch mock is picked up.

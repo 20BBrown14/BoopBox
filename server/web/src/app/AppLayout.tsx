@@ -2,12 +2,17 @@ import { AppShell, Burger, Group, NavLink, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router";
+import { useCan } from "../features/auth/can";
 import { NAV_ITEMS } from "./navItems";
 
 export function AppLayout() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const can = useCan();
   const [opened, { toggle, close }] = useDisclosure(false);
+  const items = NAV_ITEMS.filter(
+    (item) => item.permission === undefined || can(item.permission),
+  );
 
   return (
     <AppShell
@@ -33,7 +38,7 @@ export function AppLayout() {
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="xs" aria-label={t("navigation.main")}>
-        {NAV_ITEMS.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.path}
             component={Link}

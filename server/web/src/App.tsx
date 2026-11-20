@@ -4,6 +4,8 @@ import { AppLayout } from "./app/AppLayout";
 import { NavigationBridge } from "./app/NavigationBridge";
 import { NotFound } from "./components/NotFound";
 import { PagePlaceholder } from "./components/PagePlaceholder";
+import { RequireAuth } from "./features/auth/RequireAuth";
+import { RequirePermission } from "./features/auth/RequirePermission";
 
 export function App() {
   const { t } = useTranslation();
@@ -11,7 +13,13 @@ export function App() {
     <>
       <NavigationBridge />
       <Routes>
-        <Route element={<AppLayout />}>
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
           <Route index element={<Navigate to="/devices" replace />} />
           <Route
             path="devices"
@@ -23,15 +31,27 @@ export function App() {
           />
           <Route
             path="users"
-            element={<PagePlaceholder title={t("nav.users")} />}
+            element={
+              <RequirePermission permission="users.manage">
+                <PagePlaceholder title={t("nav.users")} />
+              </RequirePermission>
+            }
           />
           <Route
             path="users/:id"
-            element={<PagePlaceholder title={t("pages.user")} />}
+            element={
+              <RequirePermission permission="users.manage">
+                <PagePlaceholder title={t("pages.user")} />
+              </RequirePermission>
+            }
           />
           <Route
             path="server-settings"
-            element={<PagePlaceholder title={t("nav.serverSettings")} />}
+            element={
+              <RequirePermission permission="server_settings.manage">
+                <PagePlaceholder title={t("nav.serverSettings")} />
+              </RequirePermission>
+            }
           />
           <Route
             path="account"

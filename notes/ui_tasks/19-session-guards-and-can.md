@@ -12,7 +12,9 @@ they can't use.
 - `useMe()` on `GET /api/me`, key `['me']`.
 - `RequireAuth` around the layout routes: loading state; unauthenticated →
   `/login?next=`; `must_change_password` → `/change-password`, and nothing else
-  is reachable.
+  is reachable. A 403 from `/api/me` counts as logged out, because the server
+  answers a rejected session (disabled user, bumped token version) with 403.
+  Other failures show a retry button.
 - `useCan()` → `can(permission, deviceId?)`, mirroring the server: owner →
   true, then a global grant, then a device grant.
 - `RequirePermission` page wrapper renders `NoPermission`.

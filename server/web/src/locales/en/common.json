@@ -2,6 +2,8 @@
   "appName": "BoopBox",
   "confirm": "Confirm",
   "cancel": "Cancel",
+  "loading": "Loading",
+  "retry": "Try again",
   "nav": {
     "devices": "Devices",
     "users": "Users",
