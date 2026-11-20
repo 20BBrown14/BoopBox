@@ -37,7 +37,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
 | [x] | 10 | Password change for cookie sessions; `logout-all` | 3 | 09 | S |
 | [x] | 11 | `GET /api/me` | 3 | 07 | M |
-| [ ] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |
+| [x] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |
 | [ ] | 13 | Vitest, React Testing Library, MSW | 4 | 12 | S |
 | [ ] | 14 | i18n setup | 4 | 13 | M |
 | [ ] | 15 | Mantine and app providers | 4 | 14 | S |
