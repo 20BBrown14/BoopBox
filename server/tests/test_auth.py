@@ -476,6 +476,110 @@ def test_logout_allowed_while_must_change_password(client):
     assert r.status_code == 204
 
 
+# --- re-issued sessions: password change and logout-all ---
+
+NEW_PASSWORD = "a new long password"
+
+
+def _cookie_login(client) -> tuple[str, str]:
+    """(session jwt, csrf) for a fresh browser login as the kid."""
+    client.post("/api/auth/login", json=KID_LOGIN)
+    return client.cookies[SESSION_COOKIE], client.cookies[CSRF_COOKIE]
+
+
+def _use_cookie(client, jwt: str) -> None:
+    client.cookies.clear()
+    client.cookies.set(SESSION_COOKIE, jwt)
+
+
+def test_wrong_current_password_names_the_field(client):
+    r = client.post(
+        "/api/auth/password",
+        headers=_bearer(_token(client)),
+        json={"current_password": "nope", "new_password": NEW_PASSWORD},
+    )
+    assert r.status_code == 403
+    assert r.json()["field"] == "current_password"
+
+
+def test_cookie_password_change_reissues_the_session(client):
+    old_jwt, old_csrf = _cookie_login(client)
+    r = client.post(
+        "/api/auth/password",
+        headers={CSRF_HEADER: old_csrf},
+        json={"current_password": KID_PASSWORD, "new_password": NEW_PASSWORD},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"must_change_password": False}
+    new = _set_cookies(r)
+    new_jwt, new_csrf = new[SESSION_COOKIE].value, new[CSRF_COOKIE].value
+    assert new_jwt != old_jwt
+
+    _use_cookie(client, new_jwt)
+    r = client.post("/api/_test/user", headers={CSRF_HEADER: new_csrf})
+    assert r.status_code == 200
+    r = client.post("/api/_test/user", headers={CSRF_HEADER: old_csrf})
+    assert r.status_code == 403
+
+    _use_cookie(client, old_jwt)
+    assert client.get("/api/_test/user").status_code == 403
+
+
+def test_bearer_password_change_still_returns_a_token(client):
+    r = client.post(
+        "/api/auth/password",
+        headers=_bearer(_token(client)),
+        json={"current_password": KID_PASSWORD, "new_password": NEW_PASSWORD},
+    )
+    assert "access_token" in r.json()
+    assert "set-cookie" not in r.headers
+
+
+def test_logout_all_with_cookie(client):
+    other = _token(client)
+    old_jwt, csrf = _cookie_login(client)
+    r = client.post("/api/auth/logout-all", headers={CSRF_HEADER: csrf})
+    assert r.status_code == 200
+    assert r.json() == {"must_change_password": False}
+    new_jwt = _set_cookies(r)[SESSION_COOKIE].value
+
+    assert client.get("/api/_test/user").json()["via"] == "cookie"
+    assert client.get("/api/_test/user", headers=_bearer(other)).status_code == 403
+    _use_cookie(client, old_jwt)
+    assert client.get("/api/_test/user").status_code == 403
+    _use_cookie(client, new_jwt)
+    assert client.get("/api/_test/user").status_code == 200
+
+
+def test_logout_all_with_bearer(client):
+    first = _token(client)
+    other = issue_user_jwt(
+        2,
+        version=0,
+        secret=_auth_secret(client),
+        ttl_seconds=600,
+        now=now_seconds() - 60,
+    )
+    r = client.post("/api/auth/logout-all", headers=_bearer(first))
+    assert r.status_code == 200
+    fresh = r.json()["access_token"]
+    assert client.get("/_test/user", headers=_bearer(fresh)).status_code == 200
+    assert client.get("/_test/user", headers=_bearer(first)).status_code == 403
+    assert client.get("/_test/user", headers=_bearer(other)).status_code == 403
+
+
+def test_logout_all_leaves_other_users_alone(client):
+    run_sql(client.db_path, "UPDATE auth_identities SET must_change_password = 0")
+    owner = _token(client, OWNER, OWNER_PASSWORD)
+    client.post("/api/auth/logout-all", headers=_bearer(_token(client)))
+    assert client.get("/_test/user", headers=_bearer(owner)).status_code == 200
+
+
+def test_logout_all_needs_csrf_with_cookie(client):
+    _cookie_login(client)
+    assert client.post("/api/auth/logout-all").status_code == 403
+
+
 def test_client_address():
     assert client_address("10.0.0.1", "1.2.3.4, 5.6.7.8", False) == "10.0.0.1"
     assert client_address("10.0.0.1", "1.2.3.4, 5.6.7.8", True) == "5.6.7.8"

@@ -1,11 +1,16 @@
 """Local username and password login, for scripts (bearer token) and for the
-browser (session cookie), plus logout and changing your own password."""
+browser (session cookie), plus logout, logging out everywhere and changing
+your own password."""
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.auth.deps import AuthError, require_user_allow_password_change
+from app.auth.deps import (
+    AuthError,
+    require_user,
+    require_user_allow_password_change,
+)
 from app.auth.jwt import issue_user_jwt, now_seconds
 from app.auth.login import client_address, login_local
 from app.auth.passwords import (
@@ -89,6 +94,29 @@ async def _check_login(request: Request, body: TokenRequest) -> tuple[AuthUser, 
     return user, settings
 
 
+def _set_cookie_session(
+    request: Request, response: Response, user_id: int, version: int, settings: dict
+) -> None:
+    token, ttl = _issue(user_id, version, settings)
+    set_session(
+        response,
+        token,
+        secret=settings["secrets.auth_token"],
+        max_age=ttl,
+        secure=request_is_https(request, settings["auth.trust_forwarded_header"]),
+    )
+
+
+async def _reissue(request: Request, user_id: int, version: int) -> JSONResponse:
+    """A new credential for the new token version, in the form the caller used."""
+    settings = await request.app.state.settings.snapshot()
+    if request.state.auth_via != "cookie":
+        return _token_response(user_id, version, settings, False)
+    response = JSONResponse(SessionOut(must_change_password=False).model_dump())
+    _set_cookie_session(request, response, user_id, version, settings)
+    return response
+
+
 @router.post("/auth/token", dependencies=[Depends(require_json_same_origin)])
 async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
     user, settings = await _check_login(request, body)
@@ -102,14 +130,7 @@ async def auth_login(
     request: Request, response: Response, body: TokenRequest
 ) -> SessionOut:
     user, settings = await _check_login(request, body)
-    token, ttl = _issue(user.id, user.token_version, settings)
-    set_session(
-        response,
-        token,
-        secret=settings["secrets.auth_token"],
-        max_age=ttl,
-        secure=request_is_https(request, settings["auth.trust_forwarded_header"]),
-    )
+    _set_cookie_session(request, response, user.id, user.token_version, settings)
     return SessionOut(must_change_password=user.must_change_password)
 
 
@@ -139,7 +160,11 @@ async def change_password(
     if stored is None or not await verify_password(
         stored, normalize_password(body.current_password)
     ):
-        raise AuthError(ErrorCode.forbidden)
+        raise ApiError(
+            ErrorCode.forbidden,
+            "current password is incorrect",
+            field="current_password",
+        )
 
     new_password = normalize_password(body.new_password)
     problem = password_problem(new_password)
@@ -151,5 +176,15 @@ async def change_password(
         version = await users.change_password(
             conn, user.id, user.identity_id, new_hash, timestamp()
         )
-    settings = await request.app.state.settings.snapshot()
-    return _token_response(user.id, version, settings, False)
+    return await _reissue(request, user.id, version)
+
+
+@router.post("/auth/logout-all")
+async def logout_all(
+    request: Request,
+    user: AuthUser = Depends(require_user),  # noqa: B008
+) -> JSONResponse:
+    """Revoke every session of this user, then log this one back in."""
+    async with request.app.state.db.write() as conn:
+        version = await users.bump_token_version(conn, user.id)
+    return await _reissue(request, user.id, version)

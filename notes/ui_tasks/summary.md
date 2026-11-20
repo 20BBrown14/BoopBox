@@ -34,7 +34,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 06 | Session cookie and CSRF helpers | 3 Browser session | 04 | S |
 | [x] | 07 | Cookie authentication and CSRF in `require_user` | 3 | 06 | M |
 | [x] | 08 | Guard for unauthenticated JSON posts | 3 | 04 | S |
-| [ ] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
+| [x] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
 | [ ] | 10 | Password change for cookie sessions; `logout-all` | 3 | 09 | S |
 | [ ] | 11 | `GET /api/me` | 3 | 07 | M |
 | [ ] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |

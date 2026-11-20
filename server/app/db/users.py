@@ -225,6 +225,12 @@ async def change_password(
             updated_at=now,
         )
     )
+    return await bump_token_version(conn, user_id)
+
+
+async def bump_token_version(conn: AsyncConnection, user_id: int) -> int:
+    """Revoke every token the user holds. Not an edit, so `updated_*` stays.
+    Returns the new version."""
     return await conn.scalar(
         update(users)
         .where(users.c.id == user_id)
