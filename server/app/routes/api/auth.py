@@ -1,7 +1,7 @@
-"""POST /api/auth/token: log in with a local username and password.
-POST /api/auth/password: change your own password (required after first login)."""
+"""Local username and password login, for scripts (bearer token) and for the
+browser (session cookie), plus logout and changing your own password."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -14,7 +14,12 @@ from app.auth.passwords import (
     password_problem,
     verify_password,
 )
-from app.auth.session import require_json_same_origin
+from app.auth.session import (
+    clear_session,
+    request_is_https,
+    require_json_same_origin,
+    set_session,
+)
 from app.db import users
 from app.db.timestamps import timestamp
 from app.db.users import AuthUser
@@ -33,7 +38,11 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 
-def _token_response(user_id: int, version: int, settings: dict, must_change: bool):
+class SessionOut(BaseModel):
+    must_change_password: bool
+
+
+def _issue(user_id: int, version: int, settings: dict) -> tuple[str, int]:
     ttl = settings["auth.token_lifetime_hours"] * 3600
     token = issue_user_jwt(
         user_id,
@@ -42,6 +51,11 @@ def _token_response(user_id: int, version: int, settings: dict, must_change: boo
         ttl_seconds=ttl,
         now=now_seconds(),
     )
+    return token, ttl
+
+
+def _token_response(user_id: int, version: int, settings: dict, must_change: bool):
+    token, ttl = _issue(user_id, version, settings)
     return JSONResponse(
         {
             "access_token": token,
@@ -52,8 +66,7 @@ def _token_response(user_id: int, version: int, settings: dict, must_change: boo
     )
 
 
-@router.post("/auth/token", dependencies=[Depends(require_json_same_origin)])
-async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
+async def _check_login(request: Request, body: TokenRequest) -> tuple[AuthUser, dict]:
     settings = await request.app.state.settings.snapshot()
     user = await login_local(
         request.app.state.db,
@@ -73,9 +86,43 @@ async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
             "invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    return user, settings
+
+
+@router.post("/auth/token", dependencies=[Depends(require_json_same_origin)])
+async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
+    user, settings = await _check_login(request, body)
     return _token_response(
         user.id, user.token_version, settings, user.must_change_password
     )
+
+
+@router.post("/auth/login", dependencies=[Depends(require_json_same_origin)])
+async def auth_login(
+    request: Request, response: Response, body: TokenRequest
+) -> SessionOut:
+    user, settings = await _check_login(request, body)
+    token, ttl = _issue(user.id, user.token_version, settings)
+    set_session(
+        response,
+        token,
+        secret=settings["secrets.auth_token"],
+        max_age=ttl,
+        secure=request_is_https(request, settings["auth.trust_forwarded_header"]),
+    )
+    return SessionOut(must_change_password=user.must_change_password)
+
+
+@router.post("/auth/logout", status_code=204)
+async def auth_logout(
+    request: Request,
+    _user: AuthUser = Depends(require_user_allow_password_change),  # noqa: B008
+) -> Response:
+    response = Response(status_code=204)
+    if request.state.auth_via == "cookie":
+        trust = await request.app.state.settings.get("auth.trust_forwarded_header")
+        clear_session(response, secure=request_is_https(request, trust))
+    return response
 
 
 @router.post("/auth/password")

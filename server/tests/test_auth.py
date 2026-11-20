@@ -2,6 +2,7 @@
 strict separation between the credential types."""
 
 import base64
+from http.cookies import SimpleCookie
 
 import pytest
 from fastapi import Depends, Request
@@ -11,7 +12,7 @@ from app.auth import require_device_api, require_user
 from app.auth.jwt import issue_user_jwt, now_seconds
 from app.auth.login import client_address
 from app.auth.passwords import _hasher
-from app.auth.session import CSRF_HEADER, SESSION_COOKIE, csrf_token
+from app.auth.session import CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE, csrf_token
 from app.db.users import AuthUser
 from app.main import create_app
 from app.security import hash_secret
@@ -341,6 +342,138 @@ def test_cookie_checks_token_version(client):
 def test_device_token_in_cookie_is_rejected(client):
     client.cookies.set(SESSION_COOKIE, API_TOKEN)
     assert client.get("/api/_test/user").status_code == 403
+
+
+# --- browser login and logout ---
+
+KID_LOGIN = {"username": KID, "password": KID_PASSWORD}
+
+
+def _set_cookies(response) -> dict:
+    parsed = {}
+    for header in response.headers.get_list("set-cookie"):
+        cookie = SimpleCookie(header)
+        parsed.update({name: cookie[name] for name in cookie})
+    return parsed
+
+
+def _trust_forwarded(client) -> None:
+    run_sql(
+        client.db_path,
+        "INSERT INTO settings (key, value, encrypted, updated_at) "
+        "VALUES ('auth.trust_forwarded_header', 'true', 0, ?)",
+        (T,),
+    )
+
+
+def test_login_sets_both_cookies(client):
+    r = client.post("/api/auth/login", json=KID_LOGIN)
+    assert r.status_code == 200
+    assert r.json() == {"must_change_password": False}
+    cookies = _set_cookies(r)
+
+    session = cookies[SESSION_COOKIE]
+    assert session["httponly"] is True
+    assert session["samesite"] == "strict"
+    assert session["path"] == "/api"
+    assert session["max-age"] == str(8 * 3600)
+    assert not session["secure"]
+
+    csrf = cookies[CSRF_COOKIE]
+    assert not csrf["httponly"]
+    assert csrf["samesite"] == "strict"
+    assert csrf["path"] == "/"
+    assert csrf.value == csrf_token(session.value, _auth_secret(client))
+
+
+def test_login_body_has_no_token(client):
+    r = client.post("/api/auth/login", json=KID_LOGIN)
+    assert "access_token" not in r.json()
+
+
+def test_login_cookie_authenticates(client):
+    client.post("/api/auth/login", json=KID_LOGIN)
+    r = client.get("/api/_test/user")
+    assert r.json() == {"user_id": 2, "via": "cookie"}
+
+
+def test_login_cookies_secure_over_https(client):
+    r = client.post("https://testserver/api/auth/login", json=KID_LOGIN)
+    cookies = _set_cookies(r)
+    assert cookies[SESSION_COOKIE]["secure"] is True
+    assert cookies[CSRF_COOKIE]["secure"] is True
+
+
+def test_forwarded_proto_needs_trust(client):
+    headers = {"X-Forwarded-Proto": "https"}
+    r = client.post("/api/auth/login", json=KID_LOGIN, headers=headers)
+    assert not _set_cookies(r)[SESSION_COOKIE]["secure"]
+    _trust_forwarded(client)
+    r = client.post("/api/auth/login", json=KID_LOGIN, headers=headers)
+    assert _set_cookies(r)[SESSION_COOKIE]["secure"] is True
+
+
+def test_login_reports_must_change_password(client):
+    r = client.post(
+        "/api/auth/login", json={"username": OWNER, "password": OWNER_PASSWORD}
+    )
+    assert r.json() == {"must_change_password": True}
+
+
+@pytest.mark.parametrize(
+    ("username", "password", "outcome", "user_id"),
+    [
+        (KID, "wrong-password-1", "bad_credentials", 2),
+        ("nobody", KID_PASSWORD, "unknown_user", None),
+    ],
+)
+def test_failed_login_matches_token_route(client, username, password, outcome, user_id):
+    r = client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    )
+    assert r.status_code == 401
+    assert r.json() == GENERIC
+    assert "set-cookie" not in r.headers
+    assert _history(client) == [(outcome, user_id, username)]
+
+
+def test_login_is_origin_guarded(client):
+    r = client.post(
+        "/api/auth/login", json=KID_LOGIN, headers={"Origin": "http://evil.example"}
+    )
+    assert r.status_code == 403
+    assert "set-cookie" not in r.headers
+
+
+def test_logout_needs_csrf(client):
+    client.post("/api/auth/login", json=KID_LOGIN)
+    assert client.post("/api/auth/logout").status_code == 403
+
+
+def test_logout_clears_both_cookies(client):
+    client.post("/api/auth/login", json=KID_LOGIN)
+    csrf = client.cookies[CSRF_COOKIE]
+    r = client.post("/api/auth/logout", headers={CSRF_HEADER: csrf})
+    assert r.status_code == 204
+    cookies = _set_cookies(r)
+    assert cookies[SESSION_COOKIE]["path"] == "/api"
+    assert cookies[CSRF_COOKIE]["path"] == "/"
+    assert cookies[SESSION_COOKIE]["max-age"] == "0"
+    assert cookies[CSRF_COOKIE]["max-age"] == "0"
+    assert client.get("/api/_test/user").status_code == 401
+
+
+def test_logout_with_bearer_is_a_noop(client):
+    r = client.post("/api/auth/logout", headers=_bearer(_token(client)))
+    assert r.status_code == 204
+    assert "set-cookie" not in r.headers
+
+
+def test_logout_allowed_while_must_change_password(client):
+    client.post("/api/auth/login", json={"username": OWNER, "password": OWNER_PASSWORD})
+    csrf = client.cookies[CSRF_COOKIE]
+    r = client.post("/api/auth/logout", headers={CSRF_HEADER: csrf})
+    assert r.status_code == 204
 
 
 def test_client_address():
