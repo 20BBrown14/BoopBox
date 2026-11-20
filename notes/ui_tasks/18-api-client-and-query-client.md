@@ -16,11 +16,16 @@ A typed client and the global error handling from ui_design.md "Errors".
   unknown error when the body isn't the expected shape.
 - `src/api/queryClient.ts`: no retry on 4xx. `QueryCache` / `MutationCache`
   `onError`:
-  - 401: clear the cache and go to `/login?next=<current path>`
-  - 403: "no permission" notification, invalidate `['me']`
+  - 401: clear the cache and go to `/login?next=<current path>`. Not on
+    `/login` itself, where a 401 is a failed login that the form handles.
+  - 403: "no permission" notification, invalidate `['me']`. Not when the error
+    names a `field` (a wrong current password is a form error), and not for
+    the `['me']` query itself, which would only refetch itself.
   - 5xx and network: retry notification
-- Navigation from outside the router goes through a small navigator ref that
-  the layout registers.
+- Navigation from outside the router goes through a small navigation ref
+  (`src/api/navigation.ts`) that `NavigationBridge` registers. It is mounted in
+  `App`, not the layout, so routes outside the layout (`/change-password`) are
+  covered too.
 - `src/api/errorText.ts`: `errorText(t, err)` translates by `code`. It falls
   back to the server `message` only for `invalid_request`.
 - Query keys follow the plain-English convention in ui_design.md (multi-word

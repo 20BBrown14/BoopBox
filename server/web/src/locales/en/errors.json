@@ -5,5 +5,17 @@
   "not_found": "That doesn't exist.",
   "conflict": "That's already taken.",
   "item_unavailable": "That item isn't available.",
-  "source_unavailable": "The media source isn't reachable."
+  "source_unavailable": "The media source isn't reachable.",
+  "network": "Can't reach the server. Check your connection and try again.",
+  "unknown": "Something went wrong. Try again.",
+  "notify": {
+    "forbidden": {
+      "title": "Not allowed",
+      "message": "You don't have permission to do that."
+    },
+    "retry": {
+      "title": "Something went wrong",
+      "message": "The request failed. Try again in a moment."
+    }
+  }
 }
