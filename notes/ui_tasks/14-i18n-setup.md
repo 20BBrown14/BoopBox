@@ -12,7 +12,8 @@ Every UI string goes through `t()` from the first screen. See ui_design.md
 - `i18next`, `react-i18next`, `i18next-browser-languagedetector`,
   `i18next-resources-to-backend`.
 - `src/i18n/index.ts`: init with English bundled, other languages loaded by
-  dynamic `import()`, `fallbackLng: "en"`, escaping left on. Detection order:
+  dynamic `import()`, `fallbackLng: "en"`, `escapeValue: false` (React
+  escapes). Detection order:
   `localStorage` (key `boopbox.language`), then `navigator`.
 - On `languageChanged`, set `document.documentElement.lang`.
 - `src/locales/en/`: `common.json`, `auth.json`, `errors.json` (one entry per
@@ -20,7 +21,9 @@ Every UI string goes through `t()` from the first screen. See ui_design.md
 - `src/i18n/i18next.d.ts`: typed resources from the English files, so unknown
   keys fail `tsc`.
 - `src/i18n/languages.ts`: the list of shipped languages (English only).
-- ESLint `i18next/no-literal-string` on `src/`, with test files exempt.
+- ESLint `i18next/no-literal-string` on `src/`, with test files exempt. Mode
+  `jsx-only`, checking JSX text and only the `label`, `description`,
+  `placeholder`, `title`, `error`, `alt` and `aria-label` props.
 
 ## Tests
 

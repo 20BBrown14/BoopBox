@@ -1,0 +1,9 @@
+{
+  "unauthorized": "Please log in.",
+  "forbidden": "You don't have permission to do that.",
+  "invalid_request": "Something in the request isn't valid.",
+  "not_found": "That doesn't exist.",
+  "conflict": "That's already taken.",
+  "item_unavailable": "That item isn't available.",
+  "source_unavailable": "The media source isn't reachable."
+}

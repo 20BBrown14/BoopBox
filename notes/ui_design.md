@@ -571,7 +571,9 @@ Retrofitting that later means touching every screen; doing it now costs a
   A Vitest test fails when any language has a key English doesn't, or English
   lacks a key used in the code.
 - **No hard-coded text.** ESLint `i18next/no-literal-string` flags plain strings
-  in JSX. Test files are exempt.
+  in JSX text and in the props that carry visible text (`label`,
+  `description`, `placeholder`, `title`, `error`, `alt`, `aria-label`). Test
+  files are exempt.
 - **Language choice.** Detected from the browser on first visit, changeable on
   `/account`, and kept in `localStorage` (it isn't sensitive). The choice sets
   `<html lang>`. Storing it on the user is deferred.
@@ -587,8 +589,9 @@ Retrofitting that later means touching every screen; doing it now costs a
 - **Server setting labels.** Keyed by setting key in `serverSettings.json`.
   `dump_openapi.py` also writes the list of registry keys, and a test fails when
   a key has no English label.
-- **Untrusted values** are passed as interpolation values with i18next escaping
-  left on, never concatenated into a translation string.
+- **Untrusted values** are passed as interpolation values, never concatenated
+  into a translation string. i18next escaping is off (`escapeValue: false`):
+  React escapes the rendered text, and escaping twice would show `&amp;`.
 
 ## Frontend structure
 
