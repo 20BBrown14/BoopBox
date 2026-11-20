@@ -111,7 +111,7 @@ Add a dated entry to `hardware_notes.md` with this template:
 Setup: board <MAC>, pins <…>, pads <type/size>, panel <material, thickness>,
 resistor <Ω>, power <USB/battery>, firmware <version>.
 
-| Pad (GPIO) | Raw | Idle noise | Touch delta (held) | Playback shift | False presses | Threshold |
+| Pad (GPIO) | Raw | Idle noise | Touch delta (held, Run A / Run B) | Playback shift | False presses | Threshold |
 |---|---|---|---|---|---|---|
 | Vol Down (6) | | | | | | |
 | Vol Up (5) | | | | | | |

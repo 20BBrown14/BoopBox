@@ -21,7 +21,7 @@ substitutions:
   server_base_url: http://192.168.86.76:9685
   i2c_sda_pin: GPIO3
   i2c_scl_pin: GPIO4
-  # I2S moved off D9-D11 (2026-11-12): with the amp there, playback shifted the
+  # I2S moved off D9-D11: with the amp there, playback shifted the
   # D5/D6 touch readings by 5-9k and pads latched ON at pause.
   i2s_bclk_pin: GPIO38        # Feather RX
   i2s_lrclk_pin: GPIO39       # Feather TX
@@ -222,7 +222,10 @@ mqtt:
               id(publish_version)->execute();
             }
 
+# Nothing connects to the native API (the box talks MQTT), so disable its
+# default 15 min no-client reboot, which also turns Touch Setup Mode off.
 api:
+  reboot_timeout: 0s
 http_request:
 ota:
   - platform: esphome
@@ -309,7 +312,7 @@ i2c:
 # Native touch hub. On S2/S3 the hardware tracks each pad's untouched baseline
 # ("benchmark") itself; a pad reads touched when smooth - benchmark > threshold,
 # so each sensor's threshold is a delta, not an absolute reading. setup_mode
-# logs value/benchmark/difference ~1/s for calibration: set each threshold to
+# logs value/benchmark/difference ~4x/s for calibration: set each threshold to
 # ~50-70% of the touched difference, then turn setup_mode off (it costs CPU).
 # setup_mode is toggled at runtime by the "Touch Setup Mode" switch; see
 # notes/touch_tuning.md. Default 8ms measurement is too long for the S3.
@@ -373,10 +376,12 @@ binary_sensor:
       sorting_weight: 10
     icon: mdi:nfc-tap
   
-  # Capacitive transport controls. Thresholds are ~55% of the weakest held
-  # touch from the 2026-11-14 tuning run (v2 coil pads, no series resistor,
-  # spare breadboard): idle |diff| < ~320, playback shift <= 1.4k, held touch
-  # Vol Down 7.2k, Vol Up 3.6k, Play 3.4k. Re-tune per notes/touch_tuning.md
+  # Capacitive transport controls. Thresholds are ~50-55% of the weakest held
+  # touch from the 2026-11-19 tuning run (pads in the closer-to-final shell):
+  # idle |diff| < ~250, playback shift up to -2.3k (Play), pad crosstalk up to
+  # +1.4k, held touch Vol Down 8.5k, Vol Up 10.5k, Play 11.4k. The old
+  # 2000-level thresholds false-fired on amp start/stop and on crosstalk.
+  # Re-tune per notes/touch_tuning.md
   # after any pad/wiring change. delayed_off rides out the brief ~500 ms dips
   # seen while a pad is held (a 30 ms filter let Play/Pause re-fire every
   # 0.5 s). They act on boop_player like the web UI buttons do.
@@ -384,7 +389,7 @@ binary_sensor:
     name: "Touch Vol Up"
     id: touch_vol_up
     pin: ${touch_vol_up_pin}
-    threshold: 2000
+    threshold: 5500
     web_server:
       sorting_group_id: grp_controls
       sorting_weight: 10
@@ -401,7 +406,7 @@ binary_sensor:
     name: "Touch Vol Down"
     id: touch_vol_down
     pin: ${touch_vol_down_pin}
-    threshold: 4000
+    threshold: 4500
     web_server:
       sorting_group_id: grp_controls
       sorting_weight: 20
@@ -418,7 +423,7 @@ binary_sensor:
     name: "Touch Play Pause"
     id: touch_play
     pin: ${touch_play_pin}
-    threshold: 2000
+    threshold: 6000
     web_server:
       sorting_group_id: grp_controls
       sorting_weight: 30
