@@ -19,6 +19,13 @@ class LocalLogin:
 
 
 @dataclass(frozen=True)
+class Login:
+    provider: str
+    username: str | None  # local identities only
+    label: str | None
+
+
+@dataclass(frozen=True)
 class AuthUser:
     id: int
     display_name: str
@@ -195,6 +202,25 @@ async def get_active(conn: AsyncConnection, user_id: int) -> AuthUser | None:
         token_version=row.token_version,
         identity_id=row.identity_id,
         must_change_password=bool(row.must_change_password),
+    )
+
+
+async def get_login(conn: AsyncConnection, user_id: int) -> Login | None:
+    """The user's live identity, as shown to people."""
+    i = auth_identities.c
+    row = (
+        await conn.execute(
+            select(i.provider, i.subject, i.label).where(
+                i.user_id == user_id, i.deleted_at.is_(None)
+            )
+        )
+    ).first()
+    if row is None:
+        return None
+    return Login(
+        provider=row.provider,
+        username=row.subject if row.provider == "local" else None,
+        label=row.label,
     )
 
 

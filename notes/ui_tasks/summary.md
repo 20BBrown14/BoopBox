@@ -35,7 +35,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 07 | Cookie authentication and CSRF in `require_user` | 3 | 06 | M |
 | [x] | 08 | Guard for unauthenticated JSON posts | 3 | 04 | S |
 | [x] | 09 | `POST /api/auth/login` and `/logout` | 3 | 07, 08 | S |
-| [ ] | 10 | Password change for cookie sessions; `logout-all` | 3 | 09 | S |
+| [x] | 10 | Password change for cookie sessions; `logout-all` | 3 | 09 | S |
 | [ ] | 11 | `GET /api/me` | 3 | 07 | M |
 | [ ] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |
 | [ ] | 13 | Vitest, React Testing Library, MSW | 4 | 12 | S |
