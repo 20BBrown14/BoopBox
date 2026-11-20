@@ -24,7 +24,7 @@ else
   BODY='{}'
 fi
 
-curl -fsS -X POST "$BASE/ota/update" \
+curl -fsS -X POST "$BASE/api/ota/update" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d "$BODY"

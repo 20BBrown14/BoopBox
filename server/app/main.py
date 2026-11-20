@@ -6,14 +6,14 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from app.auth import AuthError, auth_error_response
 from app.config import get_env
 from app.crypto import KeyringError
 from app.db import SchemaError
+from app.errors import ApiError, http_error
 from app.firmware import FirmwareCache
 from app.mqtt import MqttService
 from app.ota import OtaPolicy
-from app.routes import api_router, firmware_router, ota_router, stream_router
+from app.routes import api_router, firmware_router, stream_router
 from app.settings import SettingError
 from app.startup import StartupError, start
 
@@ -56,10 +56,10 @@ def create_app() -> FastAPI:
     )
     app = FastAPI(title="BoopBox Server", lifespan=lifespan)
 
-    @app.exception_handler(AuthError)
-    async def _on_auth_error(_request, exc: AuthError):
-        body, status, headers = auth_error_response(exc)
-        return JSONResponse(body, status_code=status, headers=headers)
+    @app.exception_handler(ApiError)
+    async def _on_api_error(_request, exc: ApiError):
+        body, status = http_error(exc.code, exc.message, exc.field)
+        return JSONResponse(body, status_code=status, headers=exc.headers)
 
     @app.get("/health")
     async def health() -> JSONResponse:
@@ -72,7 +72,6 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
     app.include_router(stream_router)
-    app.include_router(ota_router)
     # Ensure the dir exists so a bin fetch on an unpopulated host 404s cleanly.
     Path(get_env().firmware_dir).mkdir(parents=True, exist_ok=True)
     app.include_router(firmware_router)

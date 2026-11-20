@@ -17,6 +17,12 @@ Someone new can run, develop and deploy the UI from the README.
   inviting users, setting `public_base_url` so invite links work.
 - "Run tests" and "Lint and format": add `npm run check`.
 - Every human API path under `/api`.
+- Stale sections still describing the old `config.yaml` / seed-device setup:
+  - "Configuration reference" intro and "`config.yaml` schema"
+  - "Media sources → Jellyfin" (`config.yaml` format, `BOOPBOX_SOURCE_<ID>_API_KEY`)
+  - "Testing OTA end to end" steps 1 and 3, and the "Provisioning" paragraph
+    (seed device env vars; devices are now added in the UI)
+  - the mosquitto example comment naming `BOOPBOX_SEED_DEVICE_ID`
 
 ## Tests
 

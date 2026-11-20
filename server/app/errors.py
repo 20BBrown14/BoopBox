@@ -21,6 +21,8 @@ class ErrorCode(StrEnum):
     unauthorized = "unauthorized"
     forbidden = "forbidden"
     invalid_request = "invalid_request"
+    not_found = "not_found"
+    conflict = "conflict"
 
 
 # HTTP-surfaced codes only. unknown_tag and unsupported_version are MQTT-only and
@@ -32,6 +34,8 @@ HTTP_STATUS: dict[ErrorCode, int] = {
     ErrorCode.item_unavailable: 404,
     ErrorCode.source_unavailable: 502,
     ErrorCode.invalid_request: 422,
+    ErrorCode.not_found: 404,
+    ErrorCode.conflict: 409,
 }
 
 
@@ -53,6 +57,8 @@ _DEFAULT_MESSAGES: dict[ErrorCode, str] = {
     ErrorCode.unauthorized: "missing or malformed stream token",
     ErrorCode.forbidden: "stream token rejected",
     ErrorCode.invalid_request: "the request is invalid",
+    ErrorCode.not_found: "not found",
+    ErrorCode.conflict: "already exists",
 }
 
 
@@ -62,15 +68,36 @@ def default_message(code: ErrorCode) -> str:
 
 
 def http_error(
-    code: ErrorCode, message: str | None = None
+    code: ErrorCode, message: str | None = None, field: str | None = None
 ) -> tuple[dict[str, str], int]:
-    """Build an HTTP error: ``({"code", "message"}, status)``.
+    """Build an HTTP error: ``({"code", "message", "field"?}, status)``.
 
     `message` must already be a safe, generic string; when omitted a generic
     default for the code is used. Any upstream detail goes to logs, not here.
+    `field` names the offending input and is included only when given.
     """
     body = {"code": str(code), "message": message or default_message(code)}
+    if field is not None:
+        body["field"] = field
     return body, http_status_for(code)
+
+
+class ApiError(Exception):
+    """Raised by a handler or dependency; rendered with `http_error`."""
+
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str | None = None,
+        *,
+        field: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.code = code
+        self.message = message
+        self.field = field
+        self.headers = headers
+        super().__init__(code)
 
 
 def mqtt_error(

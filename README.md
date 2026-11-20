@@ -369,7 +369,7 @@ Setup, with `<server>` as the host the box can reach:
 TOKEN=$(curl -s -X POST http://<server>:9685/api/auth/token \
   -H 'Content-Type: application/json' \
   -d '{"username":"<user>","password":"<pass>"}' | jq -r .access_token)
-curl -X POST http://<server>:9685/ota/update \
+curl -X POST http://<server>:9685/api/ota/update \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"device_id":"boop-test"}'
 ```
@@ -384,15 +384,26 @@ surface. A credential for one principal is never valid for another.
 
 | Principal | Credential | Presented as | Guards |
 |-----------|-----------|--------------|--------|
-| User (UI/API) | JWT | `Authorization: Bearer <jwt>` | Human/UI actions (e.g. `POST /ota/update`). |
+| User (UI/API) | JWT from `POST /api/auth/token` | `Authorization: Bearer <jwt>` | Human/UI actions under `/api` (e.g. `POST /api/ota/update`). |
 | Device — OTA | Per-device OTA secret | HTTP Basic password (username = device id) | Firmware bin fetch (`/firmware/<chip>/…bin`). |
 | Device — API | Per-device API token | `Authorization: Bearer <token>` (+ `X-Device-Id`) | Device-facing API routes. |
 
-**User auth.** `POST /auth/token` with `{"username", "password"}` checks the
-configured `BOOPBOX_AUTH_USERNAME` / `BOOPBOX_AUTH_PASSWORD` and returns a
-short-lived JWT signed with `BOOPBOX_JWT_SECRET` (HS256). Present it as a bearer
-token on user routes. Wrong or unconfigured credentials return `401`. The JWT
-secret must be at least 32 bytes when set; a shorter one fails startup.
+**User auth.** Users are stored in the SQLite database. On first run, while no
+user exists, the server creates the owner account from
+`BOOPBOX_DEFAULT_USERNAME` / `BOOPBOX_DEFAULT_PASSWORD`; both are ignored after
+that. The owner must change that password at first login.
+
+- `POST /api/auth/token` with `{"username", "password"}` returns a JWT and
+  `must_change_password`. Any failure is the same generic `401`. Present the
+  token as a bearer token on user routes.
+- `POST /api/auth/password` with `{"current_password", "new_password"}` changes
+  your own password and returns a new token. Until it is called, a user who must
+  change their password gets `403` on every other user route.
+- Tokens are HS256, signed with the generated `secrets.auth_token` setting, and
+  last `auth.token_lifetime_hours` (8 by default). A password change revokes the
+  user's other tokens.
+- After `auth.lockout_threshold` wrong passwords (5 by default) within
+  `auth.lockout_minutes` (15), the login is locked for `auth.lockout_minutes`.
 
 **Device auth.** Each device holds two independent secrets, stored server-side
 only as SHA-256 hashes on the device row and checked in constant time. A revoked
@@ -412,36 +423,40 @@ capturing the `Authorization` header, since the OTA secret rides in it.
 ### `.env` reference
 
 All variables use the `BOOPBOX_` prefix. Values tagged **(secret)** must never be
-committed — keep them in `.env`, not `config.yaml`.
+committed. Keep them in `.env`. Everything else is a server setting stored in the
+database.
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `BOOPBOX_STREAM_SECRET` | — (required) | **(secret)** HMAC signing secret for stream tokens. |
-| `BOOPBOX_AUTH_USERNAME` | empty | User-auth login name. Empty disables login (no token can be issued). |
-| `BOOPBOX_AUTH_PASSWORD` | empty | **(secret)** User-auth password. Empty disables login. |
-| `BOOPBOX_JWT_SECRET` | empty | **(secret)** HS256 signing key for user JWTs. Must be **≥32 bytes when set** (startup fails otherwise). Empty disables login. |
-| `BOOPBOX_JWT_TTL_SECONDS` | `3600` | Lifetime of an issued user JWT. |
-| `BOOPBOX_CONFIG_PATH` | `config.yaml` | Path to `config.yaml`. |
-| `BOOPBOX_DB_PATH` | `devices.db` | SQLite file path. |
-| `BOOPBOX_FIRMWARE_DIR` | `firmware-bins` | Non-secret, deploy-specific. Directory of built OTA `.bin` files the `/firmware` host serves. See the OTA firmware directory section for layout. Distinct from the repo's `firmware/` ESPHome-source dir. |
-| `BOOPBOX_MQTT_HOST` | `localhost` | Broker host the server connects to at startup. |
+| `BOOPBOX_SECRET_KEY` | — (required unless `BOOPBOX_SECRET_KEYS_FILE` is set) | **(secret)** Encrypts the secrets stored in the database. 32 random bytes, base64url; `boopbox generate-key` prints one. Keep a copy outside the database. |
+| `BOOPBOX_SECRET_KEYS_FILE` | empty | Alternative to `BOOPBOX_SECRET_KEY`: a file with one key per line, the first active. Wins when both are set. |
+| `BOOPBOX_DEFAULT_USERNAME` | empty | Owner username, used only on first run while no user exists. Required then. |
+| `BOOPBOX_DEFAULT_PASSWORD` | empty | **(secret)** Owner's first-login password (12–128 characters), used only on first run. Must be changed at first login. |
+| `BOOPBOX_DB_PATH` | `boopbox.db` | SQLite file path. |
+| `BOOPBOX_FIRMWARE_DIR` | `firmware-bins` | Directory of built OTA `.bin` files the `/firmware` host serves. See the OTA firmware directory section for layout. Distinct from the repo's `firmware/` ESPHome-source dir. |
+| `BOOPBOX_LOG_LEVEL` | `INFO` | Python log level for the server. |
+| `BOOPBOX_BROKER_HOST_PORT` | `1884` | Host port for the bundled broker. Read by Docker Compose, not the server. |
+
+**Setting overrides.** Any server setting can be pinned from the environment as
+`BOOPBOX_` plus its key upper-cased with `.` replaced by `_` (`mqtt.host` is
+`BOOPBOX_MQTT_HOST`). The environment wins over the database. An empty value
+counts as unset, and an invalid one fails startup. The ones most often set:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `BOOPBOX_MQTT_HOST` | `localhost` | Broker host the server connects to. |
 | `BOOPBOX_MQTT_PORT` | `1883` | Broker port. |
 | `BOOPBOX_MQTT_USERNAME` | empty | Broker username; empty connects anonymously. |
-| `BOOPBOX_MQTT_PASSWORD` | empty | **(secret)** Broker password. |
+| `BOOPBOX_MQTT_PASSWORD` | empty | **(secret)** Broker password. Held in memory only when set here. |
 | `BOOPBOX_MQTT_TLS` | `false` | Enable TLS to the broker. |
-| `BOOPBOX_MQTT_TLS_CA` | empty | Path to a CA bundle when TLS is on. |
+| `BOOPBOX_MQTT_TLS_CA` | empty | PEM text of the broker's CA certificate when TLS is on. |
 | `BOOPBOX_PUBLIC_BASE_URL` | `http://127.0.0.1:9685` | URL boxes use to reach the server; used verbatim to build signed `/stream` URLs. |
-| `BOOPBOX_SOURCE_<ID>_API_KEY` | empty | **(secret)** API key per source. `<ID>` is the source id uppercased with non-alphanumeric runs replaced by `_` (e.g. `jellyfin-main` → `BOOPBOX_SOURCE_JELLYFIN_MAIN_API_KEY`). |
-| `BOOPBOX_SEED_DEVICE_ID` | `boop-test` | Seed device, upserted at startup. |
-| `BOOPBOX_SEED_DEVICE_MQTT_PASSWORD` | empty | **(secret)** Provisioned at the broker; never stored in the database. |
-| `BOOPBOX_SEED_DEVICE_OTA_SECRET` | empty | **(secret)** Stand-in for provisioning. Hashed onto the seed device row at startup; presented as the HTTP Basic password on the firmware bin fetch. |
-| `BOOPBOX_SEED_DEVICE_API_TOKEN` | empty | **(secret)** Stand-in for provisioning. Hashed onto the seed device row at startup; presented as an `Authorization: Bearer` token on device API routes. |
+| `BOOPBOX_OTA_MANIFEST_VERSION` | empty | Target firmware version. No manifest is served while empty. |
 
-The `BOOPBOX_MQTT_*` variables are live runtime config: the server opens an MQTT
-connection to the broker at startup and subscribes to `boopbox/+/boop`, so the
-broker must be reachable with these settings for boops to be answered.
-`BOOPBOX_PUBLIC_BASE_URL` is consumed to build the signed stream URL returned in
-each `play`.
+The MQTT settings are live runtime config: the server opens an MQTT connection to
+the broker at startup and subscribes to `boopbox/+/boop`, so the broker must be
+reachable with these settings for boops to be answered. `public_base_url` is used
+to build the signed stream URL returned in each `play`.
 
 For the **bundled** broker, set `BOOPBOX_MQTT_HOST=mosquitto` (the Compose
 service name), `BOOPBOX_MQTT_PORT=1883`, and the server account
@@ -450,25 +465,26 @@ service name), `BOOPBOX_MQTT_PORT=1883`, and the server account
 admin's broker and set its credentials (and `BOOPBOX_MQTT_TLS` + CA if it fronts
 TLS). See "MQTT broker: bundled vs external" above.
 
-#### Generating `BOOPBOX_STREAM_SECRET`
+#### Generating `BOOPBOX_SECRET_KEY`
 
-Use a 32-byte (256-bit) random value, the right size for the HMAC-SHA256 signing
-key. Generate one with either:
+The key is 32 random bytes, base64url-encoded. Generate one with either:
 
 ```bash
-openssl rand -base64 32
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 ```bash
-head -c 32 /dev/urandom | base64
+docker compose run --rm app boopbox generate-key
 ```
 
-Paste the output into `BOOPBOX_STREAM_SECRET` in `.env`. Rotating the secret
-invalidates all outstanding stream tokens.
+Paste the output into `BOOPBOX_SECRET_KEY` in `.env`. Without it the secrets
+stored in the database can't be decrypted, so keep a copy somewhere safe. The
+stream and login-token signing secrets are generated by the server and stored
+encrypted with this key.
 
 ### Database
 
-Device metadata is stored in a SQLite database at `BOOPBOX_DB_PATH` (default
-`devices.db`), created at startup. Keep this file on a **local** filesystem:
+Users, devices, settings and history are stored in a SQLite database at
+`BOOPBOX_DB_PATH` (default `boopbox.db`), created at startup. Keep this file on a **local** filesystem:
 SQLite WAL mode relies on local file locking and can corrupt or misbehave on a
 networked filesystem (NFS, SMB).

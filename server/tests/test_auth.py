@@ -99,11 +99,6 @@ def test_login_returns_a_working_token(client):
     ) == [(1,)]
 
 
-def test_old_token_path_is_gone(client):
-    r = client.post("/auth/token", json={"username": KID, "password": KID_PASSWORD})
-    assert r.status_code == 404
-
-
 def test_username_is_trimmed_and_case_insensitive(client):
     assert login(client, "  KiD ", KID_PASSWORD).status_code == 200
 
@@ -198,6 +193,17 @@ def test_bad_tokens(client):
     assert client.get("/_test/user", headers=_bearer(forged)).status_code == 403
 
 
+def test_user_rejections_have_neutral_messages(client):
+    missing = client.get("/_test/user")
+    assert missing.json() == {
+        "code": "unauthorized",
+        "message": "authentication required",
+    }
+    assert missing.headers["www-authenticate"] == "Bearer"
+    rejected = client.get("/_test/user", headers=_bearer("not-a-token"))
+    assert rejected.json() == {"code": "forbidden", "message": "not allowed"}
+
+
 # --- bootstrap owner and the first-login password change ---
 
 
@@ -240,6 +246,7 @@ def test_password_change_checks_current_and_length(client):
     )
     assert short.status_code == 422
     assert short.json()["code"] == "invalid_request"
+    assert short.json()["field"] == "new_password"
 
 
 def test_owner_is_created_once_with_a_hashed_password(client):

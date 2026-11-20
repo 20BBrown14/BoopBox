@@ -1,4 +1,4 @@
-"""POST /ota/update — trigger the OTA version-check path (admin/fleet action).
+"""POST /api/ota/update — trigger the OTA version-check path (admin/fleet action).
 
 Triggers a `get_version` query, not a forced flash: the normal version-check
 path decides whether an update actually happens. An absent `device_id`

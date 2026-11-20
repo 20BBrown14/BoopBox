@@ -1,4 +1,4 @@
-"""OTA version-check + push policy and the POST /ota/update endpoint.
+"""OTA version-check + push policy and the POST /api/ota/update endpoint.
 
 Policy unit tests drive OtaPolicy with a real FirmwareCache (over a tmp bin dir)
 and a fake publisher that records send_cmd/send_flash. Endpoint tests use a
@@ -144,7 +144,7 @@ async def test_auto_push_knob_on_broadcasts_query(firmware_dir):
     assert pub.flashes == []
 
 
-# --- endpoint: POST /ota/update triggers query only ---
+# --- endpoint: POST /api/ota/update triggers query only ---
 
 
 class _RecordingPolicy:
@@ -168,7 +168,7 @@ def _user_headers(client) -> dict[str, str]:
 def test_update_no_body_broadcasts_query(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
-    r = client.post("/ota/update", headers=_user_headers(client))
+    r = client.post("/api/ota/update", headers=_user_headers(client))
     assert r.status_code == 200
     assert r.json()["device_id"] == "all"
     assert recorder.queries == [None]
@@ -179,7 +179,7 @@ def test_update_with_device_id_queries_that_device(client):
     client.app.state.ota_policy = recorder
     seed_id = "boop-test"
     r = client.post(
-        "/ota/update", json={"device_id": seed_id}, headers=_user_headers(client)
+        "/api/ota/update", json={"device_id": seed_id}, headers=_user_headers(client)
     )
     assert r.status_code == 200
     assert r.json()["device_id"] == seed_id
@@ -190,7 +190,7 @@ def test_update_unknown_device_is_404(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
     r = client.post(
-        "/ota/update",
+        "/api/ota/update",
         json={"device_id": "no-such-device"},
         headers=_user_headers(client),
     )
@@ -201,7 +201,7 @@ def test_update_unknown_device_is_404(client):
 def test_update_without_auth_is_401(client):
     recorder = _RecordingPolicy()
     client.app.state.ota_policy = recorder
-    r = client.post("/ota/update")
+    r = client.post("/api/ota/update")
     assert r.status_code == 401
     assert recorder.queries == []
 
@@ -233,12 +233,12 @@ def test_update_needs_ota_manage(client):
     client.app.state.ota_policy = recorder
     token = login(client, "kid", "kid-password-123").json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    assert client.post("/ota/update", headers=headers).status_code == 403
+    assert client.post("/api/ota/update", headers=headers).status_code == 403
     run_sql(
         client.db_path,
         "INSERT INTO user_permissions (user_id, permission_id, granted_at) "
         "VALUES (2, 'ota.manage', ?)",
         (T,),
     )
-    assert client.post("/ota/update", headers=headers).status_code == 200
+    assert client.post("/api/ota/update", headers=headers).status_code == 200
     assert recorder.queries == [None]

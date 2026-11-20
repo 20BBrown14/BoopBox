@@ -15,6 +15,8 @@ def test_http_status_mapping():
     assert http_status_for(ErrorCode.forbidden) == 403
     assert http_status_for(ErrorCode.item_unavailable) == 404
     assert http_status_for(ErrorCode.source_unavailable) == 502
+    assert http_status_for(ErrorCode.not_found) == 404
+    assert http_status_for(ErrorCode.conflict) == 409
 
 
 @pytest.mark.parametrize("code", [ErrorCode.unknown_tag, ErrorCode.unsupported_version])
@@ -27,6 +29,13 @@ def test_http_error_returns_body_and_status():
     body, status = http_error(ErrorCode.forbidden, "stream token expired")
     assert body == {"code": "forbidden", "message": "stream token expired"}
     assert status == 403
+
+
+def test_http_error_field_only_when_given():
+    body, status = http_error(ErrorCode.conflict, "taken", field="username")
+    assert body == {"code": "conflict", "message": "taken", "field": "username"}
+    assert status == 409
+    assert "field" not in http_error(ErrorCode.not_found)[0]
 
 
 def test_http_error_uses_generic_default_when_omitted():

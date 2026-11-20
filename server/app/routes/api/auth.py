@@ -17,7 +17,7 @@ from app.auth.passwords import (
 from app.db import users
 from app.db.timestamps import timestamp
 from app.db.users import AuthUser
-from app.errors import ErrorCode, http_error
+from app.errors import ApiError, ErrorCode
 
 router = APIRouter()
 
@@ -67,11 +67,10 @@ async def auth_token(request: Request, body: TokenRequest) -> JSONResponse:
         user_agent=request.headers.get("user-agent"),
     )
     if user is None:
-        err_body, status = http_error(
-            ErrorCode.unauthorized, "invalid username or password"
-        )
-        return JSONResponse(
-            err_body, status_code=status, headers={"WWW-Authenticate": "Bearer"}
+        raise ApiError(
+            ErrorCode.unauthorized,
+            "invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return _token_response(
         user.id, user.token_version, settings, user.must_change_password
@@ -97,8 +96,7 @@ async def change_password(
     new_password = normalize_password(body.new_password)
     problem = password_problem(new_password)
     if problem is not None:
-        err_body, status = http_error(ErrorCode.invalid_request, problem)
-        return JSONResponse(err_body, status_code=status)
+        raise ApiError(ErrorCode.invalid_request, problem, field="new_password")
 
     new_hash = await hash_password(new_password)
     async with db.write() as conn:

@@ -17,17 +17,24 @@ from app.auth.jwt import InvalidToken, verify_user_jwt
 from app.db import devices
 from app.db import users as user_rows
 from app.db.users import AuthUser
-from app.errors import ErrorCode, http_error
+from app.errors import ApiError, ErrorCode
 from app.permissions import can
 from app.security import verify_secret
 from app.types.device import Device
 
+_MESSAGES = {
+    ErrorCode.unauthorized: "authentication required",
+    ErrorCode.forbidden: "not allowed",
+}
 
-class AuthError(Exception):
+
+class AuthError(ApiError):
     def __init__(self, code: ErrorCode, *, scheme: str | None = None) -> None:
-        self.code = code
-        self.scheme = scheme
-        super().__init__(code)
+        super().__init__(
+            code,
+            _MESSAGES[code],
+            headers={"WWW-Authenticate": scheme} if scheme else None,
+        )
 
 
 def _bearer(request: Request) -> str:
@@ -124,9 +131,3 @@ async def require_device_api(request: Request) -> Device:
     if not verify_secret(token, device.device_token_hash):
         raise AuthError(ErrorCode.forbidden, scheme="Bearer")
     return device
-
-
-def auth_error_response(err: AuthError):
-    body, status = http_error(err.code)
-    headers = {"WWW-Authenticate": err.scheme} if err.scheme else None
-    return body, status, headers
