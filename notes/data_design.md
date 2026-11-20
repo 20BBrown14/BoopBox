@@ -586,6 +586,7 @@ exists for referential integrity.
 | `sources.manage` | global | add, edit, delete and enable/disable media sources |
 | `mappings.edit` | global | create, edit and delete slug mappings |
 | `ota.manage` | global | manage firmware/OTA |
+| `server_settings.manage` | global | edit server settings |
 | `device.view` | both | see a box |
 | `device.control` | both | send commands to a box |
 
@@ -1326,7 +1327,7 @@ CREATE TABLE settings (
 
 | key | type | default | notes |
 |-----|------|---------|-------|
-| `public_base_url` | URL, up to 2048 | `http://127.0.0.1:9685` | URL boxes use to reach the server |
+| `public_base_url` | URL, up to 2048 | `http://127.0.0.1:9685` | the server's public root: boxes use it, and invite links are built on it |
 | `mqtt.host` | string | `localhost` | |
 | `mqtt.port` | integer 1-65535 | `1883` | |
 | `mqtt.username` | string | empty | |

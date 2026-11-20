@@ -1,5 +1,5 @@
-"""POST /auth/token: log in with a local username and password.
-POST /auth/password: change your own password (required after first login)."""
+"""POST /api/auth/token: log in with a local username and password.
+POST /api/auth/password: change your own password (required after first login)."""
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse

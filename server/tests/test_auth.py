@@ -99,6 +99,11 @@ def test_login_returns_a_working_token(client):
     ) == [(1,)]
 
 
+def test_old_token_path_is_gone(client):
+    r = client.post("/auth/token", json={"username": KID, "password": KID_PASSWORD})
+    assert r.status_code == 404
+
+
 def test_username_is_trimmed_and_case_insensitive(client):
     assert login(client, "  KiD ", KID_PASSWORD).status_code == 200
 
@@ -203,7 +208,7 @@ def test_owner_must_change_password_first(client):
     assert client.get("/_test/user", headers=_bearer(first)).status_code == 403
 
     r = client.post(
-        "/auth/password",
+        "/api/auth/password",
         headers=_bearer(first),
         json={
             "current_password": OWNER_PASSWORD,
@@ -223,13 +228,13 @@ def test_owner_must_change_password_first(client):
 def test_password_change_checks_current_and_length(client):
     token = _token(client)
     wrong = client.post(
-        "/auth/password",
+        "/api/auth/password",
         headers=_bearer(token),
         json={"current_password": "nope", "new_password": "a new long password"},
     )
     assert wrong.status_code == 403
     short = client.post(
-        "/auth/password",
+        "/api/auth/password",
         headers=_bearer(token),
         json={"current_password": KID_PASSWORD, "new_password": "short"},
     )

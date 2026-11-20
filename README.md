@@ -366,7 +366,7 @@ Setup, with `<server>` as the host the box can reach:
    (reads the login from `.env`; `BASE=` overrides the URL), or:
 
 ```
-TOKEN=$(curl -s -X POST http://<server>:9685/auth/token \
+TOKEN=$(curl -s -X POST http://<server>:9685/api/auth/token \
   -H 'Content-Type: application/json' \
   -d '{"username":"<user>","password":"<pass>"}' | jq -r .access_token)
 curl -X POST http://<server>:9685/ota/update \

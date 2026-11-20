@@ -178,7 +178,9 @@ def add_entry(
 
 
 def login(client, username: str, password: str):
-    return client.post("/auth/token", json={"username": username, "password": password})
+    return client.post(
+        "/api/auth/token", json={"username": username, "password": password}
+    )
 
 
 def owner_headers(client) -> dict[str, str]:

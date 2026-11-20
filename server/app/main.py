@@ -13,7 +13,7 @@ from app.db import SchemaError
 from app.firmware import FirmwareCache
 from app.mqtt import MqttService
 from app.ota import OtaPolicy
-from app.routes import auth_router, firmware_router, ota_router, stream_router
+from app.routes import api_router, firmware_router, ota_router, stream_router
 from app.settings import SettingError
 from app.startup import StartupError, start
 
@@ -70,7 +70,7 @@ def create_app() -> FastAPI:
             return JSONResponse({"status": "unavailable"}, status_code=503)
         return JSONResponse({"status": "ok"})
 
-    app.include_router(auth_router)
+    app.include_router(api_router)
     app.include_router(stream_router)
     app.include_router(ota_router)
     # Ensure the dir exists so a bin fetch on an unpopulated host 404s cleanly.

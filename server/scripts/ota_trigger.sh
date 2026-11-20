@@ -15,7 +15,7 @@ PASSWORD="${BOOP_PASSWORD:-}"
 [[ -n "$PASSWORD" ]] || { read -rsp "Password: " PASSWORD; echo; }
 
 TOKEN="$(python3 -c 'import json,sys; print(json.dumps({"username":sys.argv[1],"password":sys.argv[2]}))' "$USERNAME" "$PASSWORD" \
-  | curl -fsS -X POST "$BASE/auth/token" -H 'Content-Type: application/json' -d @- \
+  | curl -fsS -X POST "$BASE/api/auth/token" -H 'Content-Type: application/json' -d @- \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')"
 
 if [[ $# -ge 1 ]]; then
