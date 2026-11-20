@@ -44,9 +44,9 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 16 | AppShell layout and routes | 4 | 15 | M |
 | [x] | 17 | OpenAPI dump and type generation | 4 | 11, 12 | S |
 | [x] | 18 | API client and query client | 4 | 15, 17 | M |
-| [ ] | 19 | Session, route guards, `can()` | 4 | 16, 18 | M |
-| [ ] | 20 | Form error helper and login screen | 4 | 19, 09 | S |
-| [ ] | 21 | Change password screen | 4 | 20, 10 | S |
+| [x] | 19 | Session, route guards, `can()` | 4 | 16, 18 | M |
+| [x] | 20 | Form error helper and login screen | 4 | 19, 09 | S |
+| [x] | 21 | Change password screen | 4 | 20, 10 | S |
 | [ ] | 22 | Account screen | 4 | 21 | S |
 | [ ] | 23 | Serve the built UI with an SPA fallback | 5 Serving | 05 | M |
 | [ ] | 24 | Security headers on UI responses | 5 | 23 | S |

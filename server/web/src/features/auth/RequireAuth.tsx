@@ -11,9 +11,15 @@ export const CHANGE_PASSWORD_PATH = "/change-password";
 
 /**
  * Renders `children` only for a logged-in user who doesn't have to change
- * their password first.
+ * their password first, unless `allowPasswordChange` lets them through.
  */
-export function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({
+  children,
+  allowPasswordChange = false,
+}: {
+  children: ReactNode;
+  allowPasswordChange?: boolean;
+}) {
   const { t } = useTranslation();
   const { t: tErrors } = useTranslation("errors");
   const location = useLocation();
@@ -34,7 +40,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       me.error instanceof ApiError &&
       (me.error.status === 401 || me.error.status === 403)
     ) {
-      return <Navigate to={loginPath(location)} replace />;
+      return <Navigate to={loginPath(location)} replace={true} />;
     }
     return (
       <Center h="100vh">
@@ -46,8 +52,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
-  if (me.data.must_change_password) {
-    return <Navigate to={CHANGE_PASSWORD_PATH} replace />;
+  if (me.data.must_change_password && !allowPasswordChange) {
+    const next = encodeURIComponent(location.pathname + location.search);
+    return (
+      <Navigate to={`${CHANGE_PASSWORD_PATH}?next=${next}`} replace={true} />
+    );
   }
 
   return children;

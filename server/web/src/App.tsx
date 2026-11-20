@@ -4,6 +4,8 @@ import { AppLayout } from "./app/AppLayout";
 import { NavigationBridge } from "./app/NavigationBridge";
 import { NotFound } from "./components/NotFound";
 import { PagePlaceholder } from "./components/PagePlaceholder";
+import { ChangePasswordPage } from "./features/auth/ChangePasswordPage";
+import { LoginPage } from "./features/auth/LoginPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
 import { RequirePermission } from "./features/auth/RequirePermission";
 
@@ -20,7 +22,10 @@ export function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/devices" replace />} />
+          <Route
+            index={true}
+            element={<Navigate to="/devices" replace={true} />}
+          />
           <Route
             path="devices"
             element={<PagePlaceholder title={t("nav.devices")} />}
@@ -58,13 +63,14 @@ export function App() {
             element={<PagePlaceholder title={t("nav.account")} />}
           />
         </Route>
-        <Route
-          path="login"
-          element={<PagePlaceholder title={t("pages.login")} />}
-        />
+        <Route path="login" element={<LoginPage />} />
         <Route
           path="change-password"
-          element={<PagePlaceholder title={t("pages.changePassword")} />}
+          element={
+            <RequireAuth allowPasswordChange={true}>
+              <ChangePasswordPage />
+            </RequireAuth>
+          }
         />
         <Route
           path="invite"

@@ -18,8 +18,6 @@
   "pages": {
     "device": "Device",
     "user": "User",
-    "login": "Log in",
-    "changePassword": "Change password",
     "invite": "Invitation"
   },
   "notFound": {

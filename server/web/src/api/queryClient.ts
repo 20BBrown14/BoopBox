@@ -31,30 +31,55 @@ function signOut(client: QueryClient) {
   else globalThis.location.replace(to);
 }
 
-function handleError(client: QueryClient, error: unknown, queryKey?: QueryKey) {
-  if (!(error instanceof ApiError)) return;
-  const t = i18n.getFixedT(null, "errors");
+type GlobalReaction = "sign out" | "forbidden" | "retry";
 
-  if (error.status === 401) {
-    signOut(client);
-  } else if (error.status === 403) {
+/**
+ * What the query client does with an error by itself. Screens leave these
+ * alone and deal with the rest.
+ */
+export function globalReaction(
+  error: unknown,
+  queryKey?: QueryKey,
+): GlobalReaction | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.status === 401) return "sign out";
+  if (error.status === 403) {
     // A 403 that names a field is a rejected input (a wrong current password),
     // and a rejected `me` would only refetch itself.
-    if (error.field !== undefined || queryKey?.[0] === queryKeys.me[0]) return;
-    notifications.show({
-      id: "forbidden",
-      color: "red",
-      title: t("notify.forbidden.title"),
-      message: t("notify.forbidden.message"),
-    });
-    void client.invalidateQueries({ queryKey: queryKeys.me });
-  } else if (error.status >= 500 || error.code === NETWORK_CODE) {
-    notifications.show({
-      id: "retry",
-      color: "red",
-      title: t("notify.retry.title"),
-      message: t("notify.retry.message"),
-    });
+    if (error.field !== undefined || queryKey?.[0] === queryKeys.me[0]) {
+      return null;
+    }
+    return "forbidden";
+  }
+  if (error.status >= 500 || error.code === NETWORK_CODE) return "retry";
+  return null;
+}
+
+function handleError(client: QueryClient, error: unknown, queryKey?: QueryKey) {
+  const t = i18n.getFixedT(null, "errors");
+  switch (globalReaction(error, queryKey)) {
+    case "sign out":
+      signOut(client);
+      break;
+    case "forbidden":
+      notifications.show({
+        id: "forbidden",
+        color: "red",
+        title: t("notify.forbidden.title"),
+        message: t("notify.forbidden.message"),
+      });
+      void client.invalidateQueries({ queryKey: queryKeys.me });
+      break;
+    case "retry":
+      notifications.show({
+        id: "retry",
+        color: "red",
+        title: t("notify.retry.title"),
+        message: t("notify.retry.message"),
+      });
+      break;
+    case null:
+      break;
   }
 }
 
