@@ -14,11 +14,17 @@ current.
   `web/src/api/openapi.json` with sorted keys. Also write
   `web/src/api/server-setting-keys.json`, the sorted `REGISTRY` keys (task 61
   uses it).
-- `openapi-typescript` → `web/src/api/schema.d.ts`.
-- npm scripts: `gen:api` (dump + generate), `check:api` (`gen:api`, then
-  `git diff --exit-code` on the three files). `check` includes `check:api`.
-- The script runs with the server's virtualenv Python; document the command in
-  the script's docstring.
+- `openapi-typescript` → `web/src/api/schema.d.ts`. It declares TypeScript 5 as
+  a peer, so `package.json` has an `overrides` entry pointing it at ours.
+- `web/tools/genApi.ts` runs the dump and `openapi-typescript`. `gen:api` writes
+  `src/api`; `check:api` (`--check`) generates into a temp directory and fails
+  when any of the three files differs from the committed one. No git involved,
+  because `git diff` compares against the staging area. `check` includes
+  `check:api`.
+- The script runs with the server's virtualenv Python (`BOOPBOX_PYTHON`
+  overrides the default `server/.venv`); document the command in the script's
+  docstring.
+- The generated files are excluded from Prettier and ESLint.
 
 ## Tests
 
@@ -26,7 +32,6 @@ pytest: the dump is deterministic across two runs and contains `/api/me`.
 
 ## Review focus
 
-`create_app()` creates the firmware directory as a side effect
-(`Path(...).mkdir` in `main.py`). The dump must not leave a stray
-`firmware-bins/` behind. Point `BOOPBOX_FIRMWARE_DIR` at a temp directory, or
-move that `mkdir` into the lifespan.
+`create_app()` used to create the firmware directory as a side effect, which
+would leave a stray `firmware-bins/` behind after a dump. The `mkdir` is now in
+the lifespan in `main.py`.

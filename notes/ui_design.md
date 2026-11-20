@@ -324,8 +324,9 @@ UI handling by status:
   database.
 - `npm run gen:api` runs the dump and `openapi-typescript` to produce
   `web/src/api/schema.d.ts`. Both files are committed.
-- A `check:api` script regenerates and fails on `git diff --exit-code`, so a
-  server change without regenerated types is caught.
+- A `check:api` script regenerates into a temp directory and fails when the
+  committed files differ, so a server change without regenerated types is
+  caught. It doesn't use git, so it gives the same answer staged or not.
 - `openapi-fetch` middleware adds `X-CSRF-Token` from the cookie on writes and
   turns error responses into a typed `ApiError {status, code, message, field}`.
 

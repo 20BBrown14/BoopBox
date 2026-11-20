@@ -41,7 +41,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 13 | Vitest, React Testing Library, MSW | 4 | 12 | S |
 | [x] | 14 | i18n setup | 4 | 13 | M |
 | [x] | 15 | Mantine and app providers | 4 | 14 | S |
-| [ ] | 16 | AppShell layout and routes | 4 | 15 | M |
+| [x] | 16 | AppShell layout and routes | 4 | 15 | M |
 | [ ] | 17 | OpenAPI dump and type generation | 4 | 11, 12 | S |
 | [ ] | 18 | API client and query client | 4 | 15, 17 | M |
 | [ ] | 19 | Session, route guards, `can()` | 4 | 16, 18 | M |
@@ -135,7 +135,11 @@ These go beyond ui_design.md, or change it. Each is flagged again in its task.
 - **Server settings save one row at a time** (task 62), not as a page-wide form.
 - **The invite page strips the code from the URL** after reading it (task 46).
 - **The OpenAPI dump must not create a stray `firmware-bins/`** (task 17).
-  `create_app()` makes that directory as a side effect.
+  `create_app()` made that directory as a side effect, so the `mkdir` moved
+  into the lifespan.
+- **`check:api` doesn't use `git diff`** (task 17). That compares against the
+  staging area and fails on any unstaged regeneration. It compares a fresh
+  copy in a temp directory with the committed files instead.
 - **A device-detail request from a user without the permission gets 403 even
   for an unknown id** (task 53), so device ids can't be probed.
 

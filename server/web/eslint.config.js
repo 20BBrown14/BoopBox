@@ -9,7 +9,7 @@ import tseslint from "typescript-eslint";
 const testFiles = ["**/*.test.{ts,tsx}", "src/test/**"];
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores(["dist", "src/api/schema.d.ts"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

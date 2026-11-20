@@ -16,7 +16,14 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+    "gen:api": "node tools/genApi.ts",
+    "check:api": "node tools/genApi.ts --check",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run check:api"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   },
   "dependencies": {
     "@mantine/core": "^9.8.2",
@@ -50,6 +57,7 @@
     "globals": "^17.14.0",
     "jsdom": "^31.0.1",
     "msw": "^3.0.7",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.33",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",

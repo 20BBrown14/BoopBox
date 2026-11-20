@@ -36,6 +36,8 @@ async def lifespan(app: FastAPI):
     app.state.settings = services.settings
     app.state.sources = services.sources
 
+    # Ensure the dir exists so a bin fetch on an unpopulated host 404s cleanly.
+    Path(env.firmware_dir).mkdir(parents=True, exist_ok=True)
     mqtt = MqttService(services.db, services.settings, services.sources)
     app.state.mqtt = mqtt
     app.state.firmware = FirmwareCache(
@@ -104,7 +106,5 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
     app.include_router(stream_router)
-    # Ensure the dir exists so a bin fetch on an unpopulated host 404s cleanly.
-    Path(get_env().firmware_dir).mkdir(parents=True, exist_ok=True)
     app.include_router(firmware_router)
     return app
