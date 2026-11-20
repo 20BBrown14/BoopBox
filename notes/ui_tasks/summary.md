@@ -40,7 +40,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 12 | Vite + React + TS skeleton | 4 Scaffold | — | M |
 | [x] | 13 | Vitest, React Testing Library, MSW | 4 | 12 | S |
 | [x] | 14 | i18n setup | 4 | 13 | M |
-| [ ] | 15 | Mantine and app providers | 4 | 14 | S |
+| [x] | 15 | Mantine and app providers | 4 | 14 | S |
 | [ ] | 16 | AppShell layout and routes | 4 | 15 | M |
 | [ ] | 17 | OpenAPI dump and type generation | 4 | 11, 12 | S |
 | [ ] | 18 | API client and query client | 4 | 15, 17 | M |

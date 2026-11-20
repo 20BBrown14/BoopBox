@@ -8,7 +8,7 @@ The app frame and route table, with placeholder pages.
 
 ## Changes
 
-- React Router v7 in declarative mode (`BrowserRouter`, `Routes`).
+- React Router v8 in declarative mode (`BrowserRouter`, `Routes`).
 - `src/app/AppLayout.tsx`: Mantine `AppShell` with a sidebar from `sm` up, and
   a header with a burger that opens the nav as a drawer below `sm`. The drawer
   closes on navigation.

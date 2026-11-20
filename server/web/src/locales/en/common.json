@@ -1,5 +1,32 @@
 {
   "appName": "BoopBox",
   "confirm": "Confirm",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "nav": {
+    "devices": "Devices",
+    "users": "Users",
+    "serverSettings": "Server settings",
+    "account": "Account"
+  },
+  "navigation": {
+    "main": "Main",
+    "open": "Open navigation",
+    "close": "Close navigation"
+  },
+  "pages": {
+    "device": "Device",
+    "user": "User",
+    "login": "Log in",
+    "changePassword": "Change password",
+    "invite": "Invitation"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "There is nothing at this address.",
+    "home": "Back to devices"
+  },
+  "noPermission": {
+    "title": "No permission",
+    "message": "You don't have permission to view this page."
+  }
 }
