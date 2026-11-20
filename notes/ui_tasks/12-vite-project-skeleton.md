@@ -11,12 +11,14 @@ checking.
 
 - `server/web/` with `package.json`, `package-lock.json`, `tsconfig*.json`,
   `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx` (a placeholder).
-- Look up current stable versions at implementation time and pin them exactly
-  (no `^` / `~`). React must be 19.2+ for Mantine 9.
+- Look up current stable versions at implementation time. Specify them with `^`
+  (TypeScript with `~`). React must be 19.2+ for Mantine 9.
 - Node: 26 (Lithium, the current LTS), recorded in `.nvmrc` and `engines`.
 - `vite.config.ts`: dev server proxy `/api` → `http://127.0.0.1:9685`.
-- ESLint flat config: typescript-eslint, react-hooks, `react/no-danger` as an
-  error. Prettier config.
+- ESLint flat config: typescript-eslint, react-hooks,
+  `@eslint-react/dom-no-dangerously-set-innerhtml` as an error
+  (`eslint-plugin-react` doesn't support ESLint 10). TypeScript 6, because
+  typescript-eslint doesn't support 7 yet. Prettier config.
 - Scripts: `dev`, `build` (`tsc -b && vite build`), `typecheck`
   (`tsc --noEmit`), `lint`, `format`, `check` (typecheck + lint; later tasks add
   test and `check:api`).
@@ -32,4 +34,4 @@ Mantine, i18n, router, tests (tasks 13–16).
 
 ## Review focus
 
-Pinned versions and the lint rule set.
+Dependency versions and the lint rule set.

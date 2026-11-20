@@ -84,9 +84,9 @@ The UI must work on both phones and desktops.
 | Server settings permission | new global `server_settings.manage` |
 | Invite link root | `public_base_url`, the same root as the UI and API |
 
-Dependency versions are pinned exactly in `package.json` when scaffolding, the
-same way `pyproject.toml` pins Python packages. `package-lock.json` is
-committed.
+`package.json` takes minor and patch updates (`^`). TypeScript is the exception
+(`~`), because its minor releases can break builds. `package-lock.json` is
+committed, so installs stay exact. `pyproject.toml` keeps exact pins.
 
 ## Terminology
 
@@ -547,7 +547,8 @@ Invite codes, OTA secrets and device tokens are returned exactly once.
 
 `auth_identities.label`, error messages and, in later milestones, slugs and
 `auth_history.identifier` come from outside. React escapes text by default.
-`dangerouslySetInnerHTML` is banned by lint rule (`react/no-danger`), and no
+`dangerouslySetInnerHTML` is banned by lint rule
+(`@eslint-react/dom-no-dangerously-set-innerhtml`), and no
 untrusted value is put into an `href` or `src`.
 
 ## Translation (i18n)
@@ -607,7 +608,8 @@ Retrofitting that later means touching every screen; doing it now costs a
 - **Timestamps:** shown in local time with `Intl.DateTimeFormat` in the active
   language, with a relative hint (`Intl.RelativeTimeFormat`) and the full UTC
   value in a tooltip. No date library.
-- **Lint and format:** ESLint (typescript-eslint, react-hooks, `react/no-danger`,
+- **Lint and format:** ESLint (typescript-eslint, react-hooks,
+  `@eslint-react/dom-no-dangerously-set-innerhtml`,
   `i18next/no-literal-string`) and Prettier. `tsc --noEmit` is part of the check script.
 
 ## Testing

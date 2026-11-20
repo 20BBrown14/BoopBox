@@ -12,6 +12,7 @@ test-audio/
 
 # Server
 server/app-data/
+server/web/node_modules/
 
 
 # Python
