@@ -12,3 +12,6 @@ dist/
 *.db-shm
 .env
 firmware-bins/
+# The root dist/ entry above doesn't match these.
+web/node_modules/
+web/dist/

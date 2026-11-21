@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { AppLayout } from "./app/AppLayout";
 import { NavigationBridge } from "./app/NavigationBridge";
 import { NotFound } from "./components/NotFound";
+import { AccountPage } from "./features/account/AccountPage";
 import { PagePlaceholder } from "./components/PagePlaceholder";
 import { ChangePasswordPage } from "./features/auth/ChangePasswordPage";
 import { LoginPage } from "./features/auth/LoginPage";
@@ -58,10 +59,7 @@ export function App() {
               </RequirePermission>
             }
           />
-          <Route
-            path="account"
-            element={<PagePlaceholder title={t("nav.account")} />}
-          />
+          <Route path="account" element={<AccountPage />} />
         </Route>
         <Route path="login" element={<LoginPage />} />
         <Route

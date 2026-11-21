@@ -14,9 +14,11 @@ from app.crypto import KeyringError
 from app.db import SchemaError
 from app.errors import ApiError, ErrorCode, http_error
 from app.firmware import FirmwareCache
+from app.middleware import NoSniffMiddleware
 from app.mqtt import MqttService
 from app.ota import OtaPolicy
 from app.routes import api_router, firmware_router, stream_router
+from app.routes.web import mount_web
 from app.settings import SettingError
 from app.startup import StartupError, start
 
@@ -74,6 +76,7 @@ def create_app() -> FastAPI:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     app = FastAPI(title="BoopBox Server", lifespan=lifespan)
+    app.add_middleware(NoSniffMiddleware)
 
     @app.exception_handler(ApiError)
     async def _on_api_error(_request, exc: ApiError):
@@ -107,4 +110,5 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
     app.include_router(stream_router)
     app.include_router(firmware_router)
+    mount_web(app, get_env().web_dir)
     return app

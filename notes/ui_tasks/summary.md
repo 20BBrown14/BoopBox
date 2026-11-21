@@ -47,12 +47,12 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 19 | Session, route guards, `can()` | 4 | 16, 18 | M |
 | [x] | 20 | Form error helper and login screen | 4 | 19, 09 | S |
 | [x] | 21 | Change password screen | 4 | 20, 10 | S |
-| [ ] | 22 | Account screen | 4 | 21 | S |
-| [ ] | 23 | Serve the built UI with an SPA fallback | 5 Serving | 05 | M |
-| [ ] | 24 | Security headers on UI responses | 5 | 23 | S |
-| [ ] | 25 | Multi-stage Dockerfile | 5 | 12, 23 | S |
-| [ ] | 26 | Text validation helpers | 6 Users and invites | 04 | S |
-| [ ] | 27 | Users read repository | 6 | — | M |
+| [x] | 22 | Account screen | 4 | 21 | S |
+| [x] | 23 | Serve the built UI with an SPA fallback | 5 Serving | 05 | M |
+| [x] | 24 | Security headers on UI responses | 5 | 23 | S |
+| [x] | 25 | Multi-stage Dockerfile | 5 | 12, 23 | S |
+| [x] | 26 | Text validation helpers | 6 Users and invites | 04 | S |
+| [x] | 27 | Users read repository | 6 | — | M |
 | [ ] | 28 | `GET /api/users` and `/api/users/{id}` | 6 | 27, 05 | S |
 | [ ] | 29 | `POST /api/users` | 6 | 26, 28 | S |
 | [ ] | 30 | `PATCH /api/users/{id}` | 6 | 29, 10 | S |

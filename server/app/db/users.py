@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from typing import Literal
 
-from sqlalchemy import case, exists, insert, or_, select, update
+from sqlalchemy import Select, case, exists, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from app.db.tables import auth_history, auth_identities, users
+from app.db.tables import auth_history, auth_identities, invites, users
+
+UserStatus = Literal["active", "pending", "disabled"]
 
 
 @dataclass(frozen=True)
@@ -33,6 +36,26 @@ class AuthUser:
     token_version: int
     identity_id: int | None
     must_change_password: bool
+
+
+@dataclass(frozen=True)
+class UserSummary:
+    id: int
+    display_name: str
+    email: str | None
+    is_owner: bool
+    status: UserStatus
+    provider: str | None
+    username: str | None  # local identities only
+    label: str | None
+    last_login_at: str | None
+    locked: bool
+    created_at: str
+
+
+@dataclass(frozen=True)
+class UserDetail(UserSummary):
+    open_invite_expires_at: str | None
 
 
 def _not_locked(now: str):
@@ -221,6 +244,92 @@ async def get_login(conn: AsyncConnection, user_id: int) -> Login | None:
         provider=row.provider,
         username=row.subject if row.provider == "local" else None,
         label=row.label,
+    )
+
+
+def _summary_select() -> Select:
+    """Live users, each with their live identity if they have one."""
+    i, u = auth_identities.c, users.c
+    return (
+        select(
+            u.id,
+            u.display_name,
+            u.email,
+            u.is_owner,
+            u.disabled,
+            u.last_login_at,
+            u.created_at,
+            i.id.label("identity_id"),
+            i.provider,
+            i.subject,
+            i.label,
+            i.locked_until,
+        )
+        .select_from(
+            users.outerjoin(
+                auth_identities, (i.user_id == u.id) & i.deleted_at.is_(None)
+            )
+        )
+        .where(u.deleted_at.is_(None))
+    )
+
+
+def _summary_fields(row, now: str) -> dict:
+    if row.disabled:
+        status: UserStatus = "disabled"
+    elif row.identity_id is None:
+        status = "pending"
+    else:
+        status = "active"
+    return {
+        "id": row.id,
+        "display_name": row.display_name,
+        "email": row.email,
+        "is_owner": bool(row.is_owner),
+        "status": status,
+        "provider": row.provider,
+        "username": row.subject if row.provider == "local" else None,
+        "label": row.label,
+        "last_login_at": row.last_login_at,
+        "locked": row.locked_until is not None and row.locked_until > now,
+        "created_at": row.created_at,
+    }
+
+
+async def list_users(conn: AsyncConnection, now: str) -> list[UserSummary]:
+    """Live users by display name. NOCASE only folds ASCII letters."""
+    u = users.c
+    rows = await conn.execute(
+        _summary_select().order_by(u.display_name.collate("NOCASE"), u.id)
+    )
+    return [UserSummary(**_summary_fields(row, now)) for row in rows]
+
+
+async def get_user(conn: AsyncConnection, user_id: int, now: str) -> UserDetail | None:
+    """A live user, with the expiry of their open invite if there is one."""
+    inv, u = invites.c, users.c
+    open_invite = (
+        select(func.max(inv.expires_at))
+        .where(
+            inv.user_id == u.id,
+            inv.used_at.is_(None),
+            inv.deleted_at.is_(None),
+            inv.expires_at > now,
+        )
+        .scalar_subquery()
+    )
+    row = (
+        await conn.execute(
+            _summary_select()
+            .add_columns(open_invite.label("open_invite_expires_at"))
+            .where(u.id == user_id)
+        )
+    ).first()
+    if row is None:
+        return None
+    return UserDetail(
+        **_summary_fields(row, now),
+        open_invite_expires_at=row.open_invite_expires_at,
     )
 
 

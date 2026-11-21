@@ -23,6 +23,7 @@ class Environment(BaseSettings):
     default_password: str = ""
     secret_key: str = ""
     secret_keys_file: str = ""
+    web_dir: str = ""
 
 
 # Read by something other than a setting, so not reported as unknown.

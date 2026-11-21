@@ -177,6 +177,90 @@ def add_entry(
     )
 
 
+def add_user(
+    db_path: str,
+    user_id: int,
+    display_name: str,
+    *,
+    email: str | None = None,
+    disabled: bool = False,
+    deleted: bool = False,
+    last_login_at: str | None = None,
+) -> None:
+    """A user with no identity, which makes them pending until one is added."""
+    run_sql(
+        db_path,
+        "INSERT INTO users (id, display_name, email, disabled, last_login_at, "
+        "created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            user_id,
+            display_name,
+            email,
+            int(disabled),
+            last_login_at,
+            T,
+            T,
+            T if deleted else None,
+        ),
+    )
+
+
+def add_identity(
+    db_path: str,
+    user_id: int,
+    subject: str,
+    *,
+    provider: str = "local",
+    issuer: str = "",
+    label: str | None = None,
+    secret_hash: str | None = None,
+    locked_until: str | None = None,
+    deleted: bool = False,
+) -> None:
+    run_sql(
+        db_path,
+        "INSERT INTO auth_identities (user_id, provider, issuer, subject, label, "
+        "secret_hash, locked_until, created_at, updated_at, deleted_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            user_id,
+            provider,
+            issuer,
+            subject,
+            label,
+            secret_hash,
+            locked_until,
+            T,
+            T,
+            T if deleted else None,
+        ),
+    )
+
+
+def add_invite(
+    db_path: str,
+    user_id: int,
+    code: str,
+    *,
+    expires_at: str,
+    used: bool = False,
+    revoked: bool = False,
+) -> None:
+    run_sql(
+        db_path,
+        "INSERT INTO invites (user_id, code_hash, expires_at, used_at, created_at, "
+        "deleted_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            user_id,
+            hash_secret(code),
+            expires_at,
+            T if used else None,
+            T,
+            T if revoked else None,
+        ),
+    )
+
+
 def login(client, username: str, password: str):
     return client.post(
         "/api/auth/token", json={"username": username, "password": password}

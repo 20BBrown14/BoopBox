@@ -1,0 +1,28 @@
+{
+  "title": "Account",
+  "login": {
+    "title": "Your login",
+    "displayName": "Display name",
+    "username": "Username",
+    "method": "Login",
+    "none": "No login",
+    "changePassword": "Change password"
+  },
+  "sessions": {
+    "title": "Sessions",
+    "logout": "Log out",
+    "logoutAll": "Log out everywhere",
+    "logoutAllHint": "Logs out every other browser and app. You stay logged in here.",
+    "confirmTitle": "Log out everywhere?",
+    "confirmMessage": "Every other browser and app using your account will have to log in again.",
+    "loggedOutAll": "Logged out everywhere else."
+  },
+  "preferences": {
+    "title": "Preferences",
+    "language": "Language",
+    "colorScheme": "Color scheme",
+    "light": "Light",
+    "dark": "Dark",
+    "auto": "Match device"
+  }
+}

@@ -14,6 +14,15 @@ export function useMe() {
   });
 }
 
+/** Ends every other session; the server re-issues this one. */
+export function useLogoutAll() {
+  return useMutation({
+    mutationFn: async () => {
+      await api.POST("/api/auth/logout-all");
+    },
+  });
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
