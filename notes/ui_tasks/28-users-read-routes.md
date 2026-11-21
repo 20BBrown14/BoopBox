@@ -10,9 +10,13 @@ Read routes for the users screens.
 
 - `app/routes/api/users.py`, both routes behind
   `require_permission("users.manage")`.
-- Pydantic `UserOut` and `UserDetailOut` matching task 27.
+- Pydantic `UserOut` and `UserDetailOut` matching task 27, except that the
+  login is nested as `login: LoginOut | null`, the same shape as `GET /api/me`.
 - An unknown or deleted id → 404 `not_found`.
 - Add the router to `api_router`.
+- The list is paginated: `?limit=` (1–200, default 50) and `?offset=`, answered
+  with `{items, total, limit, offset}`. The shared `Page` and `PageParams` live
+  in `app/routes/api/pagination.py`.
 
 ## Tests
 

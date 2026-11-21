@@ -53,7 +53,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 25 | Multi-stage Dockerfile | 5 | 12, 23 | S |
 | [x] | 26 | Text validation helpers | 6 Users and invites | 04 | S |
 | [x] | 27 | Users read repository | 6 | — | M |
-| [ ] | 28 | `GET /api/users` and `/api/users/{id}` | 6 | 27, 05 | S |
+| [x] | 28 | `GET /api/users` and `/api/users/{id}` | 6 | 27, 05 | S |
 | [ ] | 29 | `POST /api/users` | 6 | 26, 28 | S |
 | [ ] | 30 | `PATCH /api/users/{id}` | 6 | 29, 10 | S |
 | [ ] | 31 | `DELETE /api/users/{id}` | 6 | 30 | S |
@@ -142,6 +142,12 @@ These go beyond ui_design.md, or change it. Each is flagged again in its task.
   copy in a temp directory with the committed files instead.
 - **A device-detail request from a user without the permission gets 403 even
   for an unknown id** (task 53), so device ids can't be probed.
+- **List endpoints are paginated by offset** (task 28). `?limit=` (1–200,
+  default 50) and `?offset=`, answered with `{items, total, limit, offset}`.
+  Offset rather than a cursor so the UI can show page numbers. Users and
+  devices follow it (tasks 41, 42, 52, 53, 56).
+- **User responses nest the login** as `login: {provider, username, label} |
+  null` (task 28), the same shape as `GET /api/me`.
 
 ## Doc issues found
 

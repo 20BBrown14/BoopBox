@@ -12,7 +12,10 @@ The data layer for the users screens.
 - `src/features/users/api.ts`: `useUsers`, `useUser(id)`, `useCreateUser`,
   `useUpdateUser`, `useDeleteUser`, `useIssueInvite`, `useRevokeInvites`,
   `useUnlockUser`, `useLogOutUserEverywhere`.
-- Keys `['users']` and `['users', id]`. Mutations invalidate both.
+- Keys `['users', 'list', {limit, offset}]` and `['users', id]`. Mutations
+  invalidate `['users']`, which covers every page and every detail.
+- `useUsers({limit, offset})` returns the `UserPage` from `GET /api/users`
+  (`items`, `total`, `limit`, `offset`); see task 28.
 - `useIssueInvite` follows the secret rule from task 40.
 - `src/test/handlers/users.ts`: MSW handlers typed against `schema.d.ts`, with an
   in-memory fixture store.

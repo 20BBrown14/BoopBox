@@ -15,8 +15,12 @@ Step 6 (Users and invites) · Depends on: 38, 39, 41, 19 · Size: S
 - "Add user" opens a modal form: display name (1–64), email (optional, one
   `@`). On success it navigates to `/users/:id`.
 - New namespace `src/locales/en/users.json`.
+- The list is paginated (task 28). A Mantine `Pagination` below it, shown when
+  `total > limit`. The page number lives in the URL (`?page=2`), so back,
+  forward and shared links keep it.
 
 ## Tests
 
 Rows render with the right badges; create flow navigates; a server `field` error
-lands on the form; the page is hidden without the permission.
+lands on the form; the page is hidden without the permission; moving to page 2
+requests `offset = limit` and updates `?page`.

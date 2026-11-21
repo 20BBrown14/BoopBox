@@ -14,9 +14,9 @@ def db_path(env, services):
     return env.db_path
 
 
-async def _list(services, now=T):
+async def _list(services, now=T, *, limit=100, offset=0):
     async with services.db.read() as conn:
-        return await users.list_users(conn, now)
+        return await users.list_users(conn, now, limit=limit, offset=offset)
 
 
 async def _get(services, user_id, now=T):
@@ -140,6 +140,30 @@ async def test_list_is_ordered_by_display_name(services, db_path):
     assert names == ["Alice", "bob", "Bob", OWNER, "zed"]
 
 
+async def test_pages_follow_the_order(services, db_path):
+    for user_id, name in enumerate(["Alice", "Bob", "Cat", "Dan"], start=2):
+        add_user(db_path, user_id, name)
+
+    async def names(limit, offset):
+        return [
+            u.display_name for u in await _list(services, limit=limit, offset=offset)
+        ]
+
+    assert await names(2, 0) == ["Alice", "Bob"]
+    assert await names(2, 2) == ["Cat", "Dan"]
+    assert await names(2, 4) == [OWNER]
+    assert await names(2, 6) == []
+
+
+async def test_count_users_counts_live_users(services, db_path):
+    add_user(db_path, 2, "Pending")
+    add_user(db_path, 3, "Disabled", disabled=True)
+    add_user(db_path, 4, "Deleted", deleted=True)
+
+    async with services.db.read() as conn:
+        assert await users.count_users(conn) == 3
+
+
 async def test_detail_matches_the_summary(services, db_path):
     add_user(db_path, 2, "Kid", email="kid@example.com")
     add_identity(db_path, 2, "kid")
@@ -201,7 +225,7 @@ async def test_list_is_one_query(services, db_path):
 
         event.listen(sync_engine, "before_cursor_execute", record)
         try:
-            assert len(await users.list_users(conn, T)) == 6
+            assert len(await users.list_users(conn, T, limit=100, offset=0)) == 6
         finally:
             event.remove(sync_engine, "before_cursor_execute", record)
     assert len(selects) == 1, selects

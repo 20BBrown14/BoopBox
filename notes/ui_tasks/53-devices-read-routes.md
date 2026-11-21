@@ -14,11 +14,14 @@ Read routes for the device screens.
 - Detail: `require_permission("device.view", device_param="device_id")`, then
   404 if the device doesn't exist.
 - Pydantic `DeviceOut`.
+- The list is paginated like `GET /api/users` (task 28): `PageParams` from
+  `app/routes/api/pagination.py`, and a `DevicePage(Page[DeviceOut])` response.
 
 ## Tests
 
 The visibility matrix (owner, global view, per-device view, none); detail 403
-vs 404; no hash fields anywhere in the responses.
+vs 404; no hash fields anywhere in the responses; `total` counts only the
+devices the caller can see.
 
 ## Review focus
 

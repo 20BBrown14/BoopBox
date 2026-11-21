@@ -296,13 +296,25 @@ def _summary_fields(row, now: str) -> dict:
     }
 
 
-async def list_users(conn: AsyncConnection, now: str) -> list[UserSummary]:
-    """Live users by display name. NOCASE only folds ASCII letters."""
+async def list_users(
+    conn: AsyncConnection, now: str, *, limit: int, offset: int
+) -> list[UserSummary]:
+    """A page of live users by display name. NOCASE only folds ASCII letters."""
     u = users.c
     rows = await conn.execute(
-        _summary_select().order_by(u.display_name.collate("NOCASE"), u.id)
+        _summary_select()
+        .order_by(u.display_name.collate("NOCASE"), u.id)
+        .limit(limit)
+        .offset(offset)
     )
     return [UserSummary(**_summary_fields(row, now)) for row in rows]
+
+
+async def count_users(conn: AsyncConnection) -> int:
+    """Live users, for the total alongside a page from `list_users`."""
+    return await conn.scalar(
+        select(func.count()).select_from(users).where(users.c.deleted_at.is_(None))
+    )
 
 
 async def get_user(conn: AsyncConnection, user_id: int, now: str) -> UserDetail | None:
