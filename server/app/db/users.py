@@ -345,6 +345,93 @@ async def get_user(conn: AsyncConnection, user_id: int, now: str) -> UserDetail 
     )
 
 
+async def create_user(
+    conn: AsyncConnection, display_name: str, email: str | None, actor: int, now: str
+) -> int:
+    """A pending user: no identity until an invite is redeemed."""
+    return await conn.scalar(
+        insert(users)
+        .values(
+            display_name=display_name,
+            email=email,
+            created_at=now,
+            created_by=actor,
+            updated_at=now,
+            updated_by=actor,
+        )
+        .returning(users.c.id)
+    )
+
+
+@dataclass(frozen=True)
+class UserChanges:
+    """Fields to set on a user; None leaves that field alone. Clearing the email
+    is `email=""`, stored as NULL."""
+
+    display_name: str | None = None
+    email: str | None = None
+    disabled: bool | None = None
+
+
+async def update_user(
+    conn: AsyncConnection, user_id: int, changes: UserChanges, actor: int, now: str
+) -> None:
+    """Apply what differs from the stored values, stamping `updated_*` only if
+    something does. Disabling also revokes the user's tokens."""
+    u = users.c
+    current = (
+        await conn.execute(
+            select(u.display_name, u.email, u.disabled).where(u.id == user_id)
+        )
+    ).one()
+    values: dict = {}
+    if (
+        changes.display_name is not None
+        and changes.display_name != current.display_name
+    ):
+        values["display_name"] = changes.display_name
+    if changes.email is not None and (changes.email or None) != current.email:
+        values["email"] = changes.email or None
+    if changes.disabled is not None and changes.disabled != bool(current.disabled):
+        values["disabled"] = int(changes.disabled)
+        if changes.disabled:
+            values["token_version"] = u.token_version + 1
+    if not values:
+        return
+    await conn.execute(
+        update(users)
+        .where(u.id == user_id)
+        .values(**values, updated_at=now, updated_by=actor)
+    )
+
+
+async def delete_user(
+    conn: AsyncConnection, user_id: int, actor: int, now: str
+) -> None:
+    """Soft delete by hand, since ON DELETE CASCADE only fires on a real delete.
+    The identity row stays, so a local username remains reserved. Grants stay
+    too; the permission check ignores deleted users."""
+    await conn.execute(
+        update(users)
+        .where(users.c.id == user_id, users.c.deleted_at.is_(None))
+        .values(
+            deleted_at=now, deleted_by=actor, token_version=users.c.token_version + 1
+        )
+    )
+    i = auth_identities.c
+    await conn.execute(
+        update(auth_identities)
+        .where(i.user_id == user_id, i.deleted_at.is_(None))
+        .values(deleted_at=now, deleted_by=actor)
+    )
+    inv = invites.c
+    await conn.execute(
+        update(invites)
+        .where(inv.user_id == user_id, inv.used_at.is_(None), inv.deleted_at.is_(None))
+        .values(deleted_at=now, deleted_by=actor)
+    )
+
+
 async def get_secret_hash(conn: AsyncConnection, identity_id: int) -> str | None:
     return await conn.scalar(
         select(auth_identities.c.secret_hash).where(

@@ -136,7 +136,8 @@ export interface paths {
         /** List Users */
         get: operations["list_users_api_users_get"];
         put?: never;
-        post?: never;
+        /** Create User */
+        post: operations["create_user_api_users_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -154,10 +155,12 @@ export interface paths {
         get: operations["get_user_api_users__user_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete User */
+        delete: operations["delete_user_api_users__user_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update User */
+        patch: operations["update_user_api_users__user_id__patch"];
         trace?: never;
     };
     "/firmware/manifest.json": {
@@ -292,6 +295,13 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** UserCreate */
+        UserCreate: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email?: string | null;
+        };
         /** UserDetailOut */
         UserDetailOut: {
             /** Created At */
@@ -350,6 +360,15 @@ export interface components {
             offset: number;
             /** Total */
             total: number;
+        };
+        /** UserUpdate */
+        UserUpdate: {
+            /** Disabled */
+            disabled?: boolean;
+            /** Display Name */
+            display_name?: string;
+            /** Email */
+            email?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -597,6 +616,39 @@ export interface operations {
             };
         };
     };
+    create_user_api_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_user_api_users__user_id__get: {
         parameters: {
             query?: never;
@@ -607,6 +659,70 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_user_api_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_api_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
