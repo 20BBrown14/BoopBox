@@ -452,3 +452,118 @@ def test_delete_needs_users_manage(client):
     r = client.delete("/api/users/3", headers=_kid_headers(client))
     assert r.status_code == 403
     assert _user_row(client, 3)["deleted_at"] is None
+
+
+# POST /api/users/{id}/unlock
+
+
+def _lock_kid(client) -> None:
+    run_sql(
+        client.db_path,
+        "UPDATE auth_identities SET failed_attempts = 5, last_failed_at = ?, "
+        "locked_until = ? WHERE user_id = 2",
+        (T, LATER),
+    )
+
+
+def _identity_row(client, user_id: int) -> tuple:
+    (row,) = query(
+        client.db_path,
+        "SELECT failed_attempts, last_failed_at, locked_until, updated_at "
+        "FROM auth_identities WHERE user_id = ? AND deleted_at IS NULL",
+        (user_id,),
+    )
+    return row
+
+
+def test_unlock_lets_a_locked_user_log_in(client):
+    _lock_kid(client)
+    assert login(client, "kid", KID_PASSWORD).status_code == 401
+    headers = owner_headers(client)
+    assert client.get("/api/users/2", headers=headers).json()["locked"] is True
+
+    r = client.post("/api/users/2/unlock", headers=headers)
+    assert r.status_code == 204
+    assert _identity_row(client, 2) == (0, None, None, T)
+    assert client.get("/api/users/2", headers=headers).json()["locked"] is False
+    assert login(client, "kid", KID_PASSWORD).status_code == 200
+
+
+def test_unlock_is_not_an_edit(client):
+    _lock_kid(client)
+    client.post("/api/users/2/unlock", headers=owner_headers(client))
+    row = _user_row(client, 2)
+    assert (row["updated_at"], row["updated_by"]) == (T, None)
+    assert _identity_row(client, 2)[3] == T
+
+
+def test_unlock_a_pending_user_changes_nothing(client):
+    add_user(client.db_path, 3, "Pending")
+    r = client.post("/api/users/3/unlock", headers=owner_headers(client))
+    assert r.status_code == 204
+
+
+def test_unlock_needs_users_manage(client):
+    _grant_kid(client, "device.view")
+    kid = _kid_headers(client)
+    run_sql(
+        client.db_path,
+        "UPDATE auth_identities SET locked_until = ? WHERE user_id = 1",
+        (LATER,),
+    )
+    r = client.post("/api/users/1/unlock", headers=kid)
+    assert r.status_code == 403
+    assert _identity_row(client, 1)[2] == LATER
+
+
+# POST /api/users/{id}/logout-all
+
+
+def test_logout_all_revokes_the_targets_tokens(client):
+    kid = _kid_headers(client)
+    headers = owner_headers(client)
+
+    r = client.post("/api/users/2/logout-all", headers=headers)
+    assert r.status_code == 204
+    assert client.get("/api/me", headers=kid).status_code == 403
+    assert client.get("/api/me", headers=headers).status_code == 200
+    assert client.get("/api/me", headers=_kid_headers(client)).status_code == 200
+
+
+def test_logout_all_is_allowed_on_the_owner(client):
+    _grant_kid(client, "users.manage")
+    owner = owner_headers(client)
+    r = client.post("/api/users/1/logout-all", headers=_kid_headers(client))
+    assert r.status_code == 204
+    assert client.get("/api/me", headers=owner).status_code == 403
+
+
+def test_logout_all_on_yourself_ends_this_session_too(client):
+    headers = owner_headers(client)
+    r = client.post("/api/users/1/logout-all", headers=headers)
+    assert r.status_code == 204
+    assert client.get("/api/me", headers=headers).status_code == 403
+
+
+def test_logout_all_is_not_an_edit(client):
+    client.post("/api/users/2/logout-all", headers=owner_headers(client))
+    row = _user_row(client, 2)
+    assert row["token_version"] == 1
+    assert (row["updated_at"], row["updated_by"]) == (T, None)
+
+
+def test_logout_all_needs_users_manage(client):
+    _grant_kid(client, "device.view")
+    owner = owner_headers(client)
+    r = client.post("/api/users/1/logout-all", headers=_kid_headers(client))
+    assert r.status_code == 403
+    assert client.get("/api/me", headers=owner).status_code == 200
+
+
+@pytest.mark.parametrize("action", ["unlock", "logout-all"])
+@pytest.mark.parametrize("deleted", [False, True])
+def test_actions_on_an_unknown_or_deleted_user_are_404(client, action, deleted):
+    if deleted:
+        add_user(client.db_path, 3, "Gone", deleted=True)
+    r = client.post(f"/api/users/3/{action}", headers=owner_headers(client))
+    assert r.status_code == 404

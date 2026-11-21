@@ -432,6 +432,16 @@ async def delete_user(
     )
 
 
+async def clear_lock(conn: AsyncConnection, user_id: int) -> None:
+    """Forget failed logins on the live identity. Telemetry, so not an edit."""
+    i = auth_identities.c
+    await conn.execute(
+        update(auth_identities)
+        .where(i.user_id == user_id, i.deleted_at.is_(None))
+        .values(failed_attempts=0, last_failed_at=None, locked_until=None)
+    )
+
+
 async def get_secret_hash(conn: AsyncConnection, identity_id: int) -> str | None:
     return await conn.scalar(
         select(auth_identities.c.secret_hash).where(

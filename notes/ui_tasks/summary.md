@@ -57,7 +57,7 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 29 | `POST /api/users` | 6 | 26, 28 | S |
 | [x] | 30 | `PATCH /api/users/{id}` | 6 | 29, 10 | S |
 | [x] | 31 | `DELETE /api/users/{id}` | 6 | 30 | S |
-| [ ] | 32 | Unlock; log a user out everywhere | 6 | 28, 10 | S |
+| [x] | 32 | Unlock; log a user out everywhere | 6 | 28, 10 | S |
 | [ ] | 33 | Invites repository: issue and revoke | 6 | — | S |
 | [ ] | 34 | Issue and revoke invites (admin routes) | 6 | 33, 28 | S |
 | [ ] | 35 | `POST /api/invites/check` | 6 | 33, 08 | S |

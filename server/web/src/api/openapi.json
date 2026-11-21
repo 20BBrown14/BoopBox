@@ -893,6 +893,71 @@
         "summary": "Update User"
       }
     },
+    "/api/users/{user_id}/logout-all": {
+      "post": {
+        "description": "Allowed on yourself too, which ends this session as well; the account\npage's /api/auth/logout-all is the one that keeps it.",
+        "operationId": "logout_user_everywhere_api_users__user_id__logout_all_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Logout User Everywhere"
+      }
+    },
+    "/api/users/{user_id}/unlock": {
+      "post": {
+        "operationId": "unlock_user_api_users__user_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlock User"
+      }
+    },
     "/firmware/manifest.json": {
       "get": {
         "operationId": "firmware_manifest_firmware_manifest_json_get",

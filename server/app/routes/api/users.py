@@ -189,6 +189,24 @@ async def update_user(
     return _detail_out(user)
 
 
+@router.post("/users/{user_id}/unlock", status_code=204)
+async def unlock_user(request: Request, user_id: int) -> Response:
+    async with request.app.state.db.write() as conn:
+        await _existing(conn, user_id, timestamp())
+        await users.clear_lock(conn, user_id)
+    return Response(status_code=204)
+
+
+@router.post("/users/{user_id}/logout-all", status_code=204)
+async def logout_user_everywhere(request: Request, user_id: int) -> Response:
+    """Allowed on yourself too, which ends this session as well; the account
+    page's /api/auth/logout-all is the one that keeps it."""
+    async with request.app.state.db.write() as conn:
+        await _existing(conn, user_id, timestamp())
+        await users.bump_token_version(conn, user_id)
+    return Response(status_code=204)
+
+
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(
     request: Request,
