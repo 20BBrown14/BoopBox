@@ -11,13 +11,13 @@
   - [Datasheet/Details](https://www.elechouse.com/elechouse/images/product/PN532_module_V3/PN532_%20Manual_V3.pdf)
 
 ## Audio (MAX98357A)
-Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in `firmware/BoopBox_v0.1.0.yaml`.
+Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in `firmware/BoopBox_v0.3.3.yaml`.
 
 | MAX98357A | Feather | Notes |
 |---|---|---|
-| BCLK | D9 / GPIO9 | |
-| LRC | D10 / GPIO10 | |
-| DIN | D11 / GPIO11 | |
+| BCLK | RX / GPIO38 | Was D9; moved away from the touch pins (see "Touch rework") |
+| LRC | TX / GPIO39 | Was D10 |
+| DIN | MI / GPIO37 | Was D11 |
 | VIN | BAT (3.7–4.2V) | 1000uF across VIN/GND right at the amp. Was USB 5V; moved to BAT 2026-11-10 for battery operation |
 | GND | GND | |
 | GAIN | GND | GND = 12 dB (floating = 9 dB was too quiet) |
@@ -102,7 +102,7 @@ dead. This is a power-path decision, not a firmware one.
 - Its connector polarity matches the Feather, so no extra protection is needed.
 - It's rated for about 1C (2 A continuous). The amp (about 0.7 A peak) plus a ring at capped brightness fits under that.
 - The Feather charger stops at 4.2V. Don't add a second charger.
-- Optional firmware low-battery shutdown: the MAX17048 fuel gauge is now in `BoopBox_v0.1.0.yaml`. Stopping audio and going to deep sleep below about 3.4V or 5% is gentler on the cell than the protection circuit's hard cutoff.
+- Optional firmware low-battery shutdown: the MAX17048 fuel gauge is now in `BoopBox_v0.3.3.yaml`. Stopping audio and going to deep sleep below about 3.4V or 5% is gentler on the cell than the protection circuit's hard cutoff.
 
 **LED ring power: BAT direct + MOSFET switch (decision 2026-11-11):**
 - The ring runs straight off BAT, with no boost converter. On 2026-11-11 it worked well enough for now.
@@ -150,8 +150,10 @@ dead. This is a power-path decision, not a firmware one.
 ## UI: capacitive buttons, LED ring, power switch (2026-11-07)
 Direction: capacitive touch buttons (no moving parts, less 3D modelling), an LED ring for visual output, a short click sound as touch feedback, and a physical power switch.
 
-### Status (2026-11-08)
-Breadboard touch bring-up is done. All three pads detect touches and drive the player (`firmware/BoopBox_v0.1.0.yaml`, threshold 5000, `setup_mode` off). Tuning is **parked** until there are copper-tape pads on a printed test panel with tidy wiring, because numbers from bare jumper leads don't carry over. **Known issue:** with the current build, pads can latch ON during audio playback (see the finding below) and toggle play or volume on their own.
+### Status
+- All three pads work in the closer-to-final shell. Thresholds come from the 2026-11-19 run (below): Vol Up 5500, Vol Down 4500, Play/Pause 6000, with `delayed_off: 150ms`.
+- Re-tune with [touch_tuning.md](touch_tuning.md) after any pad or wiring change. **Touch Setup Mode** is a web UI switch (Device group), so measuring doesn't need a reflash.
+- The amp's I2S is on RX/TX/MI (GPIO38/39/37). Every box must be rewired to match.
 
 ### Pin plan
 | Function | Feather | GPIO | Notes |
@@ -159,10 +161,11 @@ Breadboard touch bring-up is done. All three pads detect touches and drive the p
 | Vol + (touch) | D5 | 5 | T5 |
 | Vol − (touch) | D6 | 6 | T6 |
 | Play/Pause (touch) | A4 | 14 | T14 |
-| Spare touch | A5 | 8 | T8 |
+| Spare touch | A5 | 8 | T8. Clean during playback (amp still on D9–D11). |
 | LED ring data | A0 | 18 | not a touch pin. Ring VCC is on BAT, so no level shifter is needed. |
+| Amp BCLK / LRC / DIN | RX / TX / MI | 38 / 39 / 37 | not touch pins. Moved off D9–D11 for touch. |
 
-- Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 7 (I2C power), 9–11 (I2S) and 12 (amp SD) are already taken. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
+- Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 7 (I2C power) and 12 (amp SD) are already taken. 9–11 are free since the I2S move. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
 - Three buttons fit on native touch, so no MPR121 is needed. If more controls are added later, the MPR121 (STEMMA QT) is the fallback.
 
 ### Touch wiring and pad design
@@ -188,7 +191,7 @@ Breadboard touch bring-up is done. All three pads detect touches and drive the p
   - The benchmark **freezes while a pad reads as touched**.
   - `threshold` is only written when the channel is created, so a runtime `set_threshold()` has no effect.
 - Calibrate with `setup_mode: true`: it logs `difference=` for each pad about 4×/s. Set each threshold to about 50–70% of the touched difference, then turn setup mode off.
-- To condense the logs, pipe `esphome logs` through a one-line-per-second summary of the max `difference` per pad. (The script used on 2026-11-07 was a throwaway; recreate it if needed.)
+- To condense the logs, pipe `esphome logs` through `firmware/tools/touch_summary.py` (see [touch_tuning.md](touch_tuning.md)).
 
 ```yaml
 esp32_touch:
@@ -292,7 +295,7 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
 **Finding: the box reboots after 15 minutes with no API client.**
 - The log shows `[api] No clients; rebooting`. `api:` has the default `reboot_timeout` of 15 min.
 - Nothing connects through the native API (no Home Assistant), and the web UI doesn't count as a client.
-- Unless that changes, the box reboots every 15 min. Consider setting `api: reboot_timeout: 0s`, or dropping `api:` if MQTT and the web UI cover everything.
+- Fixed: the firmware now sets `api: reboot_timeout: 0s`.
 
 ### Panel test: Vol Up on top-panel-v1 (2026-11-10)
 **Setup:**
@@ -319,10 +322,31 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
 - Repeat Vol Up behind 1 mm (or 2–3 mm) PETG, for a like-for-like comparison and to find the thickness limit.
 - Run an untouched capture with music playing, to check that the audio shift stays well below the threshold.
 
+### Touch rework: coil pads, I2S move, tuning (2026-11)
+- **Coil pads:** top panel v2 uses a small wire coil per button, on D5, D6 and A4. Through the panel a touch is 4–9% of the raw value (about half of what copper tape gave), and idle noise stays within about ±250. The 2026-11-19 run went back to copper tape.
+- **Amp I2S moved off D9–D11.** With the amp on D9–D11, starting playback shifted D5 by 5.5k and D6 by 9k, and A4 didn't move. At pause both pads latched ON. On the Feather's long header D5/D6 sit next to D9 (I2S BCLK), so the amp moved to RX/TX/MI. The touch pins couldn't move instead, because A0–A3 aren't touch-capable.
+- **Routing still matters.** On a cramped breadboard with the leads running past the amp, the shift reversed (+3.5k) instead of going away. The 470 Ω series resistors, which had to sit next to the amp, added a dip on D5 about every 5 s. With the resistors removed and the leads rerouted, the dip went away and the shift dropped to 1.4k or less.
+- **Re-firing on hold:** while a pad is held, it dips briefly about every 500 ms (from the PN532 poll or the ring tick). With a 30 ms `delayed_off`, Play/Pause re-fired on each dip. `delayed_off: 150ms` rides out the dips.
+- Touch strength varies by up to 80% with finger pressure, so set thresholds from the weakest held touch.
+
+### Touch tuning run (2026-11-19), current thresholds
+Setup: pads in the closer-to-final shell; copper-tape pads with a stranded 24 AWG lead soldered on, on D6 (Vol Down), D5 (Vol Up) and A4 (Play/Pause); firmware 0.3.3 with the amp on RX/TX/MI. Followed [touch_tuning.md](touch_tuning.md). Board, panel thickness, resistor and power: TODO.
+
+| Pad (GPIO) | Weakest held touch | Threshold |
+|---|---|---|
+| Vol Down (6) | 8.5k | 4500 |
+| Vol Up (5) | 10.5k | 5500 |
+| Play/Pause (14) | 11.4k | 6000 |
+
+- Each threshold is about 53% of the weakest held touch.
+- Idle `difference` stays under about ±250 on all three pads.
+- Playback shifts readings by up to −2.3k (Play/Pause), and touching one pad raises a neighbour by up to +1.4k.
+- The earlier breadboard thresholds (Vol Down 4000, Vol Up 2000, Play/Pause 2000) false-fired on amp start/stop and on crosstalk in the shell.
+
 ### LED ring
 - NeoPixel ring with VCC on **BAT** (not USB 5V), a 1000 µF cap across its power and a 330–470 Ω resistor on the data line.
 - Cap brightness in firmware. Full white draws about 0.72 A from the 12-LED ring, and the ring shares BAT with the amp. NeoPixels draw about 1 mA per LED even when dark.
-- Idea: briefly show the volume level on the ring after vol± presses.
+- Touch vol± presses show the volume on the ring (`show_volume`), so you can see whether a press registered.
 
 ### Feedback sound
 - A short WAV embedded in flash (no network latency), played through the media player's announcement pipeline so it ducks over the music instead of stopping it. Keep it tiny: flash is 4 MB.
@@ -338,15 +362,16 @@ Bare metal jumper tips, USB power, Wi-Fi up, `setup_mode` differences:
   - Copper foil tape (conductive adhesive).
   - KWS-2303C USB-C power meter. It reads the whole box's draw on USB only, is too coarse for sleep current, and data passthrough is unverified.
 - Skipped: the STEMMA QT cable (the PN532 is wired directly).
-- Still need: 510 Ω resistors for the touch pads, if not already in stock.
+- Touch pad resistors: none in the current build. 470 Ω was tried, but on the breadboard the resistors had to sit next to the amp, so they were removed.
 
 ### Open items
-- Touch: recalibrate with real pads behind a printed panel, on USB and on battery, with the PN532 polling and audio playing vs stopped. Then set thresholds and try denoise (see the finding above).
-- Touch UX: auto-repeat while vol± is held. Check whether play/pause double-fires (once seen as PLAYING → PAUSED 0.5 s apart). If it does, use `on_click` with min/max length or a longer debounce.
+- Touch: confirm the 2026-11-19 thresholds on battery as well as USB. Try denoise if the margins get thin.
+- Rewire Branden's box: amp I2S to RX/TX/MI.
+- PN532 sometimes fails at boot with `SCL is held LOW` (seen after reconnecting the touch coils).
+- Touch UX: auto-repeat while vol± is held.
 - Power switch design for the battery build (see above).
 - LED ring size (12 vs 16) and placement. If it goes around the NFC tap zone, check read range with the ring mounted.
 - Touch pad placement: away from the tap zone. The pads go behind 1 mm sections of the wall (decided 2026-11-10). Check NFC read range with pads mounted.
-- Touch: move all three pads to 2 cm circles behind 1 mm PETG, reboot, recalibrate each pad, and then set per-pad thresholds (about 7000 is the starting point).
 - Click sound clip.
 - Other tests: USB current budget (KWS meter: LED cap + amp peaks), reliability of the level-shifted LED data, whether the KWS meter passes USB data, battery fit.
 

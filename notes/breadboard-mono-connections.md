@@ -2,15 +2,15 @@
 
 Feather ESP32-S3 + MAX98357A I2S amp + 4Ω/3W speaker, powered from USB.
 Source of truth: schematic `hardware/boopbox-proto/audio_max98357a.kicad_sch` and pin
-substitutions in `firmware/BoopBox_v0.1.0.yaml`. See also `hardware_notes.md`.
+substitutions in `firmware/BoopBox_v0.3.3.yaml`. See also `hardware_notes.md`.
 
 ## Wiring
 
 | # | From (Feather ESP32-S3) | To (MAX98357A) | Signal | Notes |
 |---|---|---|---|---|
-| 1 | D9 / GPIO9 | BCLK | I2S bit clock | `i2s_bclk_pin` |
-| 2 | D10 / GPIO10 | LRC | I2S word select (LR clock) | `i2s_lrclk_pin` |
-| 3 | D11 / GPIO11 | DIN | I2S data | `i2s_dout_pin` |
+| 1 | RX / GPIO38 | BCLK | I2S bit clock | `i2s_bclk_pin` |
+| 2 | TX / GPIO39 | LRC | I2S word select (LR clock) | `i2s_lrclk_pin` |
+| 3 | MI / GPIO37 | DIN | I2S data | `i2s_dout_pin` |
 | 4 | BAT (3.7–4.2V) | VIN | Power | Was USB 5V (~2.5W into 4Ω); BAT since 2026-11-10 so it runs on battery. 3.3V only ~1.3W |
 | 5 | GND | GND | Ground | Share a common ground rail |
 | 6 | GND | GAIN | Gain select | GND = 12 dB (floating 9 dB was too quiet) |
