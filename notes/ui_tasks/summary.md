@@ -63,9 +63,9 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 35 | `POST /api/invites/check` | 6 | 33, 08 | S |
 | [x] | 36 | Invite redemption transaction | 6 | 35 | M |
 | [x] | 37 | `POST /api/invites/redeem` | 6 | 36, 09 | S |
-| [ ] | 38 | `ResponsiveList` component | 6 | 15 | S |
-| [ ] | 39 | `Timestamp` and formatting helpers | 6 | 15 | S |
-| [ ] | 40 | `ConfirmDanger` and `SecretReveal` | 6 | 15 | M |
+| [x] | 38 | `ResponsiveList` component | 6 | 15 | S |
+| [x] | 39 | `Timestamp` and formatting helpers | 6 | 15 | S |
+| [x] | 40 | `ConfirmDanger` and `SecretReveal` | 6 | 15 | M |
 | [ ] | 41 | Users query hooks and MSW handlers | 6 | 18, 37 | S |
 | [ ] | 42 | Users list screen | 6 | 38, 39, 41, 19 | S |
 | [ ] | 43 | User detail: layout and profile | 6 | 42 | S |

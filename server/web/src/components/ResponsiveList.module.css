@@ -1,0 +1,31 @@
+/* A <tr> can't be a link, so the link in the primary cell is stretched over
+   the whole row instead. */
+.row {
+  position: relative;
+}
+
+.rowLink {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.rowLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.rowLink:focus-visible {
+  outline: none;
+}
+
+.rowLink:focus-visible::after {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.card {
+  color: inherit;
+  text-decoration: none;
+}

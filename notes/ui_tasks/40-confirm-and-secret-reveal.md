@@ -9,8 +9,9 @@ values shown only once.
 
 ## Changes
 
-- `src/components/confirmDanger.ts`: wraps `openConfirmModal` with a red
-  confirm button and a body naming the target. Returns a promise.
+- `src/components/confirmDanger.tsx` (`.tsx` because the body is JSX): wraps
+  `openConfirmModal` with a red confirm button and a body naming the target.
+  Returns a promise.
 - `src/components/SecretReveal.tsx`:
   - can't be closed by clicking outside, Escape or a close button
   - each secret has a read-only field and a `CopyButton`; an optional link
@@ -18,7 +19,9 @@ values shown only once.
   - a confirmation checkbox ("I've saved it") enables the Done button
   - on close it calls `onDone`, and the caller drops the value
 - Rule for every mutation that returns a secret: `gcTime: 0`, and `reset()` on
-  close, so the value doesn't linger in the mutation cache.
+  close, so the value doesn't linger in the mutation cache. `useSecretMutation`
+  (`src/api/secretMutation.ts`) applies the `gcTime` half; the caller still
+  calls `reset()` from `onDone`.
 
 ## Tests
 

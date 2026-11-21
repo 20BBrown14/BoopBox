@@ -28,5 +28,16 @@
   "noPermission": {
     "title": "No permission",
     "message": "You don't have permission to view this page."
+  },
+  "timestamp": {
+    "never": "Never",
+    "local": "Local: {{time}}",
+    "utc": "UTC: {{time}}"
+  },
+  "secretReveal": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "saved": "I've saved it somewhere safe",
+    "done": "Done"
   }
 }
