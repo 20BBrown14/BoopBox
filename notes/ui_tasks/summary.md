@@ -58,11 +58,11 @@ with its goal, changes, tests and the points worth checking in review.
 | [x] | 30 | `PATCH /api/users/{id}` | 6 | 29, 10 | S |
 | [x] | 31 | `DELETE /api/users/{id}` | 6 | 30 | S |
 | [x] | 32 | Unlock; log a user out everywhere | 6 | 28, 10 | S |
-| [ ] | 33 | Invites repository: issue and revoke | 6 | — | S |
-| [ ] | 34 | Issue and revoke invites (admin routes) | 6 | 33, 28 | S |
-| [ ] | 35 | `POST /api/invites/check` | 6 | 33, 08 | S |
-| [ ] | 36 | Invite redemption transaction | 6 | 35 | M |
-| [ ] | 37 | `POST /api/invites/redeem` | 6 | 36, 09 | S |
+| [x] | 33 | Invites repository: issue and revoke | 6 | — | S |
+| [x] | 34 | Issue and revoke invites (admin routes) | 6 | 33, 28 | S |
+| [x] | 35 | `POST /api/invites/check` | 6 | 33, 08 | S |
+| [x] | 36 | Invite redemption transaction | 6 | 35 | M |
+| [x] | 37 | `POST /api/invites/redeem` | 6 | 36, 09 | S |
 | [ ] | 38 | `ResponsiveList` component | 6 | 15 | S |
 | [ ] | 39 | `Timestamp` and formatting helpers | 6 | 15 | S |
 | [ ] | 40 | `ConfirmDanger` and `SecretReveal` | 6 | 15 | M |
@@ -148,6 +148,13 @@ These go beyond ui_design.md, or change it. Each is flagged again in its task.
   devices follow it (tasks 41, 42, 52, 53, 56).
 - **User responses nest the login** as `login: {provider, username, label} |
   null` (task 28), the same shape as `GET /api/me`.
+- **A disabled user can't be invited** (task 34). The issue route answers 422,
+  since the invite couldn't be redeemed until the user is enabled.
+- **Any re-invite revokes the user's tokens** (task 36), even when they keep
+  their username, as a password change does.
+- **Redeem checks the code before hashing the password** (task 37), so an
+  unauthenticated request with a bad code costs no Argon2 work. The write
+  transaction checks it again.
 
 ## Doc issues found
 

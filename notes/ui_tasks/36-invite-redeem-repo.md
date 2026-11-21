@@ -21,7 +21,12 @@ RedeemResult(user_id, token_version)` in a write transaction:
    `deleted_by` = the invite's `created_by`.
 4. Insert the new identity unless one was revived.
 5. Set the invite's `used_at`.
-6. Bump `token_version` when an identity was replaced.
+6. Bump `token_version` whenever the user already had a live identity, including
+   when that same row is reused with a new password. A first redemption never
+   bumps.
+
+Step 3 runs before the revive or insert, because `auth_identities_user` allows
+only one live identity per user.
 
 A unique-index `IntegrityError` (a race) becomes conflict.
 

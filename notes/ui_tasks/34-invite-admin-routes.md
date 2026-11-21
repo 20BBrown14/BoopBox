@@ -16,6 +16,8 @@ An admin issues an invite and receives the code and link exactly once.
   - Owner → 422 with a clear message. Deleted or unknown user → 404.
   - Allowed for both pending and active users; for an active user it is a
     re-invite.
+  - A disabled user → 422 ("enable the user before inviting them"), since
+    `find_valid` would refuse the invite anyway.
 - `DELETE /api/users/{id}/invites` → 204.
 
 ## Tests

@@ -245,17 +245,19 @@ def add_invite(
     expires_at: str,
     used: bool = False,
     revoked: bool = False,
+    created_by: int | None = None,
 ) -> None:
     run_sql(
         db_path,
         "INSERT INTO invites (user_id, code_hash, expires_at, used_at, created_at, "
-        "deleted_at) VALUES (?, ?, ?, ?, ?, ?)",
+        "created_by, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             user_id,
             hash_secret(code),
             expires_at,
             T if used else None,
             T,
+            created_by,
             T if revoked else None,
         ),
     )

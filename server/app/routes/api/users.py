@@ -1,12 +1,14 @@
 """User management routes. Everything here needs `users.manage`."""
 
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from app.auth import require_permission
-from app.db import users
+from app.auth.invites import hash_code, new_code
+from app.db import invites, users
 from app.db.timestamps import timestamp
 from app.db.users import AuthUser
 from app.errors import ApiError, ErrorCode
@@ -52,6 +54,12 @@ class UserPage(Page[UserOut]):
 class UserCreate(BaseModel):
     display_name: str
     email: str | None = None
+
+
+class InviteOut(BaseModel):
+    code: str
+    url: str
+    expires_at: str
 
 
 class UserUpdate(BaseModel):
@@ -187,6 +195,51 @@ async def update_user(
         await users.update_user(conn, user_id, changes, actor.id, now)
         user = await _existing(conn, user_id, now)
     return _detail_out(user)
+
+
+@router.post("/users/{user_id}/invites", status_code=201)
+async def issue_invite(
+    request: Request,
+    response: Response,
+    user_id: int,
+    actor: AuthUser = Depends(_require_manage),  # noqa: B008
+) -> InviteOut:
+    """For a pending user, or an active one who lost access (a re-invite). The
+    code is only ever in this response."""
+    settings = await request.app.state.settings.snapshot()
+    now_dt = datetime.now(UTC)
+    now = timestamp(now_dt)
+    expires_at = timestamp(now_dt + timedelta(days=settings["invites.expiry_days"]))
+    code = new_code()
+    async with request.app.state.db.write() as conn:
+        user = await _existing(conn, user_id, now)
+        # Otherwise anyone with users.manage could take over the owner's login.
+        if user.is_owner:
+            raise ApiError(ErrorCode.invalid_request, "the owner can't be invited")
+        if user.status == "disabled":
+            raise ApiError(
+                ErrorCode.invalid_request, "enable the user before inviting them"
+            )
+        await invites.issue(conn, user_id, hash_code(code), expires_at, actor.id, now)
+    response.headers["Cache-Control"] = "no-store"
+    return InviteOut(
+        code=code,
+        url=f"{settings['public_base_url']}/invite#code={code}",
+        expires_at=expires_at,
+    )
+
+
+@router.delete("/users/{user_id}/invites", status_code=204)
+async def revoke_invites(
+    request: Request,
+    user_id: int,
+    actor: AuthUser = Depends(_require_manage),  # noqa: B008
+) -> Response:
+    now = timestamp()
+    async with request.app.state.db.write() as conn:
+        await _existing(conn, user_id, now)
+        await invites.revoke_open(conn, user_id, actor.id, now)
+    return Response(status_code=204)
 
 
 @router.post("/users/{user_id}/unlock", status_code=204)

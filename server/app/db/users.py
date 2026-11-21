@@ -432,6 +432,12 @@ async def delete_user(
     )
 
 
+async def set_last_login(conn: AsyncConnection, user_id: int, now: str) -> None:
+    await conn.execute(
+        update(users).where(users.c.id == user_id).values(last_login_at=now)
+    )
+
+
 async def clear_lock(conn: AsyncConnection, user_id: int) -> None:
     """Forget failed logins on the live identity. Telemetry, so not an edit."""
     i = auth_identities.c

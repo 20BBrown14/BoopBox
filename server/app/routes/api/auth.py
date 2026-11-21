@@ -94,7 +94,7 @@ async def _check_login(request: Request, body: TokenRequest) -> tuple[AuthUser, 
     return user, settings
 
 
-def _set_cookie_session(
+def set_cookie_session(
     request: Request, response: Response, user_id: int, version: int, settings: dict
 ) -> None:
     token, ttl = _issue(user_id, version, settings)
@@ -113,7 +113,7 @@ async def _reissue(request: Request, user_id: int, version: int) -> JSONResponse
     if request.state.auth_via != "cookie":
         return _token_response(user_id, version, settings, False)
     response = JSONResponse(SessionOut(must_change_password=False).model_dump())
-    _set_cookie_session(request, response, user_id, version, settings)
+    set_cookie_session(request, response, user_id, version, settings)
     return response
 
 
@@ -130,7 +130,7 @@ async def auth_login(
     request: Request, response: Response, body: TokenRequest
 ) -> SessionOut:
     user, settings = await _check_login(request, body)
-    _set_cookie_session(request, response, user.id, user.token_version, settings)
+    set_cookie_session(request, response, user.id, user.token_version, settings)
     return SessionOut(must_change_password=user.must_change_password)
 
 
