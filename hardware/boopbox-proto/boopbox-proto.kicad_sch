@@ -1,7 +1,7 @@
 (kicad_sch (version 20250114) (generator "eeschema") (generator_version "9.0")
 (uuid "cf3ae905-5af5-44db-b9d8-9bea9527c364")
 (paper "USLetter")
-(title_block (title "BoopBox breadboard prototype") (date "2026-10-17") (rev "B") (company "BoopBox") (comment 1 "Feather ESP32-S3 + PN532 + MAX98357A audio"))
+(title_block (title "BoopBox breadboard prototype") (date "2026-11-24") (rev "C") (company "BoopBox") (comment 1 "Feather S3, PN532, MAX98357A, NeoPixel ring, touch pads (battery)"))
 (lib_symbols
 (symbol "power:+5V"
 		(power global)
@@ -563,6 +563,487 @@
     (pin passive line (at -10.16 -3.81 0) (length 2.54) (name "SCL" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
   )
 )
+(symbol "power:+BATT"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#PWR"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+BATT"
+			(at 0 3.556 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+BATT\""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "global power battery"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "+BATT_0_1"
+			(polyline
+				(pts
+					(xy -0.762 1.27) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 2.54) (xy 0.762 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "+BATT_1_1"
+			(pin power_in line
+				(at 0 0 90)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "Device:R"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "R"
+			(at 2.032 0 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "R"
+			(at 0 0 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at -1.778 0 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "R res resistor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "R_*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "R_0_1"
+			(rectangle
+				(start -1.016 -2.54)
+				(end 1.016 2.54)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "R_1_1"
+			(pin passive line
+				(at 0 3.81 270)
+				(length 1.27)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 1.27)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "Device:C_Polarized"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "C"
+			(at 0.635 2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "C_Polarized"
+			(at 0.635 -2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 0.9652 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Polarized capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "cap capacitor"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "CP_*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "C_Polarized_0_1"
+			(rectangle
+				(start -2.286 0.508)
+				(end 2.286 1.016)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.778 2.286) (xy -0.762 2.286)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.27 2.794) (xy -1.27 1.778)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(rectangle
+				(start 2.286 -0.508)
+				(end -2.286 -1.016)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type outline)
+				)
+			)
+		)
+		(symbol "C_Polarized_1_1"
+			(pin passive line
+				(at 0 3.81 270)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 2.794)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+(symbol "boopbox-proto:NeoPixel_Ring_12" (pin_names (offset 1.016)) (exclude_from_sim no) (in_bom yes) (on_board yes)
+  (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "NeoPixel_Ring_12" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "https://www.adafruit.com/product/1643" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Description" "12x WS2812B addressable LED ring (Adafruit NeoPixel Ring 12)." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (symbol "NeoPixel_Ring_12_0_1" (rectangle (start -7.62 6.35) (end 7.62 -6.35) (stroke (width 0.254) (type default)) (fill (type background))))
+  (symbol "NeoPixel_Ring_12_1_1"
+    (pin passive line (at -10.16 3.81 0) (length 2.54) (name "VCC" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 1.27 0) (length 2.54) (name "DIN" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at -10.16 -1.27 0) (length 2.54) (name "GND" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at 10.16 1.27 180) (length 2.54) (name "DOUT" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+  )
+)
+(symbol "boopbox-proto:Touch_Pad" (pin_names (offset 1.016) (hide yes)) (exclude_from_sim no) (in_bom yes) (on_board yes)
+  (property "Reference" "TP" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "Touch_Pad" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Description" "Capacitive touch pad (copper foil / electrode) wired to an ESP32-S3 touch GPIO." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (symbol "Touch_Pad_0_1" (rectangle (start -2.54 1.905) (end 2.54 -1.905) (stroke (width 0.254) (type default)) (fill (type outline))))
+  (symbol "Touch_Pad_1_1"
+    (pin passive line (at -5.08 0 0) (length 2.54) (name "PAD" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+  )
+)
 )
 (symbol (lib_id "boopbox-proto:Feather_ESP32-S3_N4R2") (at 101.6 96.52 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "522cf92d-754b-41b1-b303-2519a909a498")
   (property "Reference" "U1" (at 101.6 73.66 0) (effects (font (size 1.27 1.27))))
@@ -619,39 +1100,43 @@
   (pin "1" (uuid "a660d1db-92f2-4184-8fcb-c5a046be4fc8"))
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR02") (unit 1))))
 )
-(no_connect (at 78.74 87.63) (uuid "b3f3c6c3-22cb-4132-a008-fb2fa729de80"))
+(wire (pts (xy 78.74 87.63) (xy 60.96 87.63)) (stroke (width 0) (type default)) (uuid "edf763e4-238b-4a09-bb29-4dd727f39843"))
+(label "LED_DIN" (at 60.96 87.63 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ef1a9ed6-41a0-4061-9d1c-36a80eca9d27"))
 (no_connect (at 78.74 90.17) (uuid "41126f4e-84c9-4928-9f72-a9004e11a0fa"))
 (no_connect (at 78.74 92.71) (uuid "07d3b795-6b06-4d3c-ab78-334ee9cd504e"))
 (no_connect (at 78.74 95.25) (uuid "cbd76b71-a8bd-45c0-8817-aec54c167101"))
-(no_connect (at 78.74 97.79) (uuid "74d98034-9dc0-480f-870d-d64c3f6a212e"))
+(wire (pts (xy 78.74 97.79) (xy 73.66 97.79)) (stroke (width 0) (type default)) (uuid "18843455-39f2-4ebb-9092-ff3bb31d5d37"))
+(label "TOUCH_PLAY" (at 73.66 97.79 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "135d2318-060d-41bf-bde3-6695f63540dc"))
 (no_connect (at 78.74 100.33) (uuid "a57fbb63-270e-4684-8e17-cdb8bb9ee305"))
 (no_connect (at 78.74 102.87) (uuid "7b61dcbc-ac60-47e6-9be5-b6d4f184e87c"))
 (no_connect (at 78.74 105.41) (uuid "df7bc49c-0552-448e-b4f0-f8538d3f4bcc"))
-(no_connect (at 78.74 107.95) (uuid "f4286c5e-947a-4cba-af08-36bbc5c5cd5a"))
-(no_connect (at 78.74 110.49) (uuid "a16c3fb0-39e5-4fe3-b3e9-72fa5308ef30"))
-(no_connect (at 78.74 113.03) (uuid "83a3a482-dfea-4522-ad10-f151843c70d3"))
+(wire (pts (xy 78.74 107.95) (xy 73.66 107.95)) (stroke (width 0) (type default)) (uuid "32ff4337-b4e5-493f-8427-2f1d70c7819b"))
+(global_label "I2S_DIN" (shape output) (at 73.66 107.95 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "ebf01683-d3c8-416c-b7d7-c64050541a39"))
+(wire (pts (xy 78.74 110.49) (xy 73.66 110.49)) (stroke (width 0) (type default)) (uuid "bfd1e76b-df3c-404b-b8c0-e30f2bd1ffbf"))
+(global_label "I2S_BCLK" (shape output) (at 73.66 110.49 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "ba81b0f4-986c-4e12-b238-5c7c65160481"))
+(wire (pts (xy 78.74 113.03) (xy 73.66 113.03)) (stroke (width 0) (type default)) (uuid "a830f492-271b-46ae-abbe-c995c7f5918c"))
+(global_label "I2S_LRC" (shape output) (at 73.66 113.03 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "be806dfa-3486-4721-acc1-549a52e94dc8"))
 (no_connect (at 78.74 115.57) (uuid "3eb27255-a0ed-487e-9e3f-c280b467d02f"))
-(no_connect (at 124.46 77.47) (uuid "b7354ac7-2fc2-420b-8ff4-6d8ced235959"))
-(no_connect (at 124.46 80.01) (uuid "744f78e5-b73e-4be5-a316-ae4282f01253"))
-(wire (pts (xy 124.46 82.55) (xy 129.54 82.55)) (stroke (width 0) (type default)) (uuid "35c804bf-ba18-46da-92e1-f91d31208fcb"))
-(symbol (lib_id "power:+5V") (at 129.54 82.55 270) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "c7c72132-77d1-442e-829d-5c0e94957bbc")
-  (property "Reference" "#PWR03" (at 134.62 81.28 270) (effects (font (size 1.27 1.27)) (hide yes)))
-  (property "Value" "+5V" (at 134.62 82.55 270) (effects (font (size 1.27 1.27))))
-  (property "Footprint" "" (at 129.54 82.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-  (property "Datasheet" "" (at 129.54 82.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-  (pin "1" (uuid "4173a85f-9579-42f6-8273-ff7a9748663d"))
-  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR03") (unit 1))))
+(wire (pts (xy 124.46 77.47) (xy 129.54 77.47)) (stroke (width 0) (type default)) (uuid "ee9721af-a4fe-4ab1-bc5d-7eda3af53205"))
+(symbol (lib_id "power:+BATT") (at 129.54 77.47 270) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "fffdd717-7cc1-4958-bb89-2b29e150c351")
+  (property "Reference" "#PWR12" (at 129.54 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "+BATT" (at 134.62 77.47 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 129.54 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 129.54 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "17a7a6a8-a4f8-4c46-b379-620757a6dc68"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR12") (unit 1))))
 )
+(no_connect (at 124.46 80.01) (uuid "744f78e5-b73e-4be5-a316-ae4282f01253"))
+(no_connect (at 124.46 82.55) (uuid "b5f6820b-bcc1-479f-9556-968d280781b2"))
 (no_connect (at 124.46 85.09) (uuid "e5ea84e3-71f5-456a-8c01-59eb59c16ea7"))
 (no_connect (at 124.46 87.63) (uuid "8bca4c69-8f32-4044-81db-9b61c310fb63"))
-(wire (pts (xy 124.46 90.17) (xy 129.54 90.17)) (stroke (width 0) (type default)) (uuid "f2e1d431-9da6-479b-9338-2c2251088728"))
-(global_label "I2S_DIN" (shape output) (at 129.54 90.17 0) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify left)) (uuid "8f724835-d605-4a6c-8396-b56f85b9e3d0"))
-(wire (pts (xy 124.46 92.71) (xy 129.54 92.71)) (stroke (width 0) (type default)) (uuid "d44eab8b-7c08-4dd5-8a3a-1059995f5414"))
-(global_label "I2S_LRC" (shape output) (at 129.54 92.71 0) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify left)) (uuid "2a8949c3-bd82-45a5-a500-0b8599e4cc77"))
-(wire (pts (xy 124.46 95.25) (xy 129.54 95.25)) (stroke (width 0) (type default)) (uuid "69a90a16-06f3-4312-be6a-8f20b0994ea6"))
-(global_label "I2S_BCLK" (shape output) (at 129.54 95.25 0) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify left)) (uuid "4e8f25ca-5b19-44ea-bc4d-0a766fd13d98"))
-(no_connect (at 124.46 97.79) (uuid "432988dd-19ce-4d83-9dbd-32ddef0e73f9"))
-(no_connect (at 124.46 100.33) (uuid "a24b9076-3791-486b-9445-9eee0d656a04"))
+(no_connect (at 124.46 90.17) (uuid "8d01bd51-b1c2-4b2a-be55-5efcfed72290"))
+(no_connect (at 124.46 92.71) (uuid "25fd786c-41aa-49f2-9ab6-ea06d9d02788"))
+(no_connect (at 124.46 95.25) (uuid "63e3822c-379a-4025-a763-f746c07e7cd6"))
+(wire (pts (xy 124.46 97.79) (xy 129.54 97.79)) (stroke (width 0) (type default)) (uuid "5b6d1fa0-e2a7-4e45-8606-6c108a397378"))
+(label "TOUCH_VOL_DN" (at 129.54 97.79 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "8cff89fb-cedb-4138-9d4a-d5f0193eda6d"))
+(wire (pts (xy 124.46 100.33) (xy 129.54 100.33)) (stroke (width 0) (type default)) (uuid "4384f320-026e-4b26-a79d-6dbd489739f9"))
+(label "TOUCH_VOL_UP" (at 129.54 100.33 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "77e80168-7572-4b99-acdd-444d2b4e6888"))
 (wire (pts (xy 124.46 102.87) (xy 129.54 102.87)) (stroke (width 0) (type default)) (uuid "a0163e4d-2e64-4afc-be98-44112465e2cf"))
 (global_label "I2C_SCL" (shape bidirectional) (at 129.54 102.87 0) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify left)) (uuid "4861701d-a454-41ce-aee4-85ba1e058002"))
 (wire (pts (xy 124.46 105.41) (xy 129.54 105.41)) (stroke (width 0) (type default)) (uuid "edbc1f19-9eb1-4aa9-aa38-c47fa3c1ec9c"))
@@ -706,7 +1191,106 @@
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#FLG07") (unit 1))))
 )
 (text "PWR_FLAG: tells ERC the GND net is driven (Feather GND pin is passive)." (exclude_from_sim no) (at 55.88 129.54 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "a6345764-9f5a-4ebd-a75b-3980ca1de0f2"))
-(text "BREADBOARD NOTES\n1. PN532: set the DIP switch to I2C before powering up. Feather has 5k pull-ups on SDA/SCL;\n   the PN532 board's own pull-ups in parallel are fine.\n2. Avoid GPIO7 (STEMMA QT / I2C power enable), GPIO21 + GPIO33 (NeoPixel).\n3. USB pin = 5V only while powered from USB-C. On battery it is unpowered: amp would need BAT.\n4. Audio: MAX98357A (I2S DAC + amp) on the sheet below. The PCM5102A + MAX98306 option was\n   dropped; it lives in git history (commit 1c76144).\n   GPIO12 is reserved for the MAX98357A SD pin (mute/sleep); not wired yet (SD floats = L+R mix).\n5. ESPHome: i2s_audio lrclk=GPIO10, bclk=GPIO9, dout=GPIO11; i2c sda=GPIO3, scl=GPIO4." (exclude_from_sim no) (at 152.4 99.06 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "48a66d78-bb57-4a72-94d6-f799507de29e"))
+(symbol (lib_id "boopbox-proto:Touch_Pad") (at 50.8 40.64 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "ff15fec5-859c-4c01-b02f-f806e99bd527")
+  (property "Reference" "TP1" (at 54.61 39.37 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "Vol +" (at 54.61 41.910000000000004 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 50.8 40.64 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 50.8 40.64 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "a36ad0aa-520e-45e4-99ca-e10d62f9548d"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "TP1") (unit 1))))
+)
+(wire (pts (xy 45.72 40.64) (xy 40.64 40.64)) (stroke (width 0) (type default)) (uuid "a74a7032-fee9-4c29-8092-8d110a08ebbf"))
+(label "TOUCH_VOL_UP" (at 40.64 40.64 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "09be1f06-e5bd-4856-966b-036caff689df"))
+(symbol (lib_id "boopbox-proto:Touch_Pad") (at 50.8 48.26 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "489c61f6-15a6-403f-a85c-572717aac256")
+  (property "Reference" "TP2" (at 54.61 46.989999999999995 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "Vol -" (at 54.61 49.53 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 50.8 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 50.8 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "e3594612-0e8f-486a-af89-050f49399b8c"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "TP2") (unit 1))))
+)
+(wire (pts (xy 45.72 48.26) (xy 40.64 48.26)) (stroke (width 0) (type default)) (uuid "9a34b409-44cf-403d-be36-e86295efb6ad"))
+(label "TOUCH_VOL_DN" (at 40.64 48.26 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4c00436f-8f58-409f-b61a-bd5e233ca2fb"))
+(symbol (lib_id "boopbox-proto:Touch_Pad") (at 50.8 55.88 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "c3550865-896b-48ec-8524-9b22fa656591")
+  (property "Reference" "TP3" (at 54.61 54.61 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "Play" (at 54.61 57.150000000000006 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 50.8 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 50.8 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "57f1dc4c-8077-4aa4-8fab-bd7c5c7476a3"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "TP3") (unit 1))))
+)
+(wire (pts (xy 45.72 55.88) (xy 40.64 55.88)) (stroke (width 0) (type default)) (uuid "c2f93aa8-f3a0-4156-aef0-4f0c991d164c"))
+(label "TOUCH_PLAY" (at 40.64 55.88 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "2a7f79d0-8454-4396-a80d-f503620a89c2"))
+(symbol (lib_id "boopbox-proto:NeoPixel_Ring_12") (at 76.2 160.02 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "86d4401c-5f9a-4530-ad29-fe28066a92a5")
+  (property "Reference" "U4" (at 76.2 152.4 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "NeoPixel Ring 12" (at 76.2 167.64 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 76.2 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 76.2 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "b30475e2-cc6b-4d20-9e4c-4b3dd8e315d9"))
+  (pin "2" (uuid "dafce8ae-51cb-4051-b119-73bb87dddacb"))
+  (pin "3" (uuid "7229138e-cc47-43a6-920f-09ce1f390a62"))
+  (pin "4" (uuid "dae2c510-a320-44e5-8025-e2f02aa18386"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "U4") (unit 1))))
+)
+(wire (pts (xy 66.04 156.21) (xy 63.5 156.21)) (stroke (width 0) (type default)) (uuid "276988d3-6474-447e-b9e9-e4403801dfd7"))
+(wire (pts (xy 63.5 156.21) (xy 63.5 148.59)) (stroke (width 0) (type default)) (uuid "5d0f40cc-0c24-4105-8097-45641db539e8"))
+(symbol (lib_id "power:+BATT") (at 63.5 148.59 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "6372920a-91e6-41b5-a06b-c1eccebeba74")
+  (property "Reference" "#PWR13" (at 63.5 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "+BATT" (at 63.5 144.78 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 63.5 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 63.5 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "491eae4c-be92-499d-954f-7e15c7c7af58"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR13") (unit 1))))
+)
+(wire (pts (xy 66.04 161.29) (xy 63.5 161.29)) (stroke (width 0) (type default)) (uuid "ec8e8173-2b3d-4e5c-a681-1dc7e81cbddf"))
+(wire (pts (xy 63.5 161.29) (xy 63.5 171.45)) (stroke (width 0) (type default)) (uuid "100f9bda-0d2b-4568-ad1a-f59bc1a56bf1"))
+(symbol (lib_id "power:GND") (at 63.5 171.45 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "2aeefb68-18e8-4df5-8a42-c3f25ba21250")
+  (property "Reference" "#PWR14" (at 63.5 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "GND" (at 63.5 175.26 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 63.5 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 63.5 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "7ffef822-c3ed-454a-a241-1d50ea59f370"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR14") (unit 1))))
+)
+(wire (pts (xy 66.04 158.75) (xy 58.42 158.75)) (stroke (width 0) (type default)) (uuid "b6238424-430a-4d9f-808e-5c1c4dba706c"))
+(symbol (lib_id "Device:R") (at 54.61 158.75 90) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "5fcd9f17-bbdd-4626-b86b-f91c921ed1a5")
+  (property "Reference" "R1" (at 54.61 154.94 90) (effects (font (size 1.27 1.27))))
+  (property "Value" "470R" (at 54.61 162.56 90) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 54.61 158.75 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 54.61 158.75 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "9fffc9c4-f48d-4ad4-835b-99f3caec8ca3"))
+  (pin "2" (uuid "9c74a92d-66c8-4fed-ae77-51a96fb8939c"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "R1") (unit 1))))
+)
+(wire (pts (xy 50.8 158.75) (xy 45.72 158.75)) (stroke (width 0) (type default)) (uuid "3fbedf62-9124-4c2c-8dfd-81529ef395b1"))
+(label "LED_DIN" (at 45.72 158.75 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b2cd18c3-4f38-4d49-94b8-749260f5dd69"))
+(no_connect (at 86.36 158.75) (uuid "e8439cd6-b8fd-4422-800d-3830754dc3ed"))
+(symbol (lib_id "Device:C_Polarized") (at 99.06 160.02 0) (unit 1) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (uuid "3fc9dd5f-551c-4f39-b30a-57d46f93ae16")
+  (property "Reference" "C2" (at 101.6 158.75 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "1000uF 10V" (at 101.6 161.29 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 99.06 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 99.06 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "b51e827c-d0bf-4c5c-844d-1b897cd93a43"))
+  (pin "2" (uuid "e83eabc0-1aec-4fe1-99d8-85021065262b"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "C2") (unit 1))))
+)
+(symbol (lib_id "power:+BATT") (at 99.06 156.21 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "f4e48532-86e4-4c15-8270-4e957a1d8558")
+  (property "Reference" "#PWR15" (at 99.06 156.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "+BATT" (at 99.06 152.4 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 99.06 156.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 99.06 156.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "3b4ca9e1-f8a2-4869-a62d-00b7ceff09fa"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR15") (unit 1))))
+)
+(symbol (lib_id "power:GND") (at 99.06 163.83 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "fa660b3f-8f70-4172-b6e2-7863baf54dca")
+  (property "Reference" "#PWR16" (at 99.06 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "GND" (at 99.06 167.64 0) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 99.06 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 99.06 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "1a988623-14a9-439c-aafe-07fe4352bb91"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364" (reference "#PWR16") (unit 1))))
+)
+(text "NOTES\n- Wiring checklist and gotchas: notes/wiring.md. Rationale and history: notes/hardware_notes.md.\n- GPIO numbers: substitutions in firmware/BoopBox_v0.3.3.yaml. If this sheet disagrees, the YAML wins.\n- Planned, not drawn: AO3401 high-side switch on ring VCC (GPIO TBD); GPIO12 -> amp SD (mute)." (exclude_from_sim no) (at 152.4 99.06 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "48a66d78-bb57-4a72-94d6-f799507de29e"))
 (sheet (at 165.1 134.62) (size 63.5 7.62) (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no) (stroke (width 0.1524) (type solid)) (fill (color 0 0 0 0.0000)) (uuid "b7670513-b52d-4614-8641-1f15bc1645c8")
   (property "Sheetname" "Audio: MAX98357A" (at 165.1 133.92 0) (effects (font (size 1.27 1.27)) (justify left bottom)))
   (property "Sheetfile" "audio_max98357a.kicad_sch" (at 165.1 142.84 0) (effects (font (size 1.27 1.27)) (justify left top)))
