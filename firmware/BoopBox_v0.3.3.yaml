@@ -1351,7 +1351,7 @@ i2s_audio:
 
 # MAX98357A: GAIN to GND (12 dB), SD floating = (L+R)/2 mix. One physical
 # driver, so mono: the same samples go to both I2S slots, and the amp's L+R mix
-# plays them at full level. Wiring: notes/breadboard-mono-connections.md.
+# plays them at full level. Wiring: notes/wiring.md.
 speaker:
   - platform: i2s_audio
     id: boop_speaker

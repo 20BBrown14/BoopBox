@@ -1,7 +1,7 @@
 (kicad_sch (version 20250114) (generator "eeschema") (generator_version "9.0")
 (uuid "308e0a81-d8dc-4fe7-93f4-66a51207ec05")
 (paper "USLetter")
-(title_block (title "Audio: MAX98357A") (date "2026-10-17") (rev "B") (company "BoopBox") (comment 1 "Single board: I2S in, speaker out"))
+(title_block (title "Audio: MAX98357A") (date "2026-11-24") (rev "C") (company "BoopBox") (comment 1 "Single board: I2S in, speaker out"))
 (lib_symbols
 (symbol "power:+5V"
 		(power global)
@@ -829,6 +829,145 @@
 		)
 		(embedded_fonts no)
 	)
+(symbol "power:+BATT"
+		(power global)
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "#PWR"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+BATT"
+			(at 0 3.556 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+BATT\""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "global power battery"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "+BATT_0_1"
+			(polyline
+				(pts
+					(xy -0.762 1.27) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 2.54) (xy 0.762 1.27)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 0) (xy 0 2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "+BATT_1_1"
+			(pin power_in line
+				(at 0 0 90)
+				(length 0)
+				(name ""
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 (symbol "boopbox-proto:MAX98357A_Breakout" (pin_names (offset 1.016)) (exclude_from_sim no) (in_bom yes) (on_board yes)
   (property "Reference" "U" (at 0 11.43 0) (effects (font (size 1.27 1.27))))
   (property "Value" "MAX98357A_Breakout" (at 0 -11.43 0) (effects (font (size 1.27 1.27))))
@@ -871,7 +1010,15 @@
 (global_label "I2S_BCLK" (shape input) (at 86.36 83.82 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "968882d8-c52a-4200-a797-2f74ccf2f8ab"))
 (wire (pts (xy 91.44 86.36) (xy 86.36 86.36)) (stroke (width 0) (type default)) (uuid "6dc60035-1d1a-46ae-bb2c-4300c4bb4c01"))
 (global_label "I2S_DIN" (shape input) (at 86.36 86.36 180) (fields_autoplaced yes) (effects (font (size 1.27 1.27)) (justify right)) (uuid "71e52ad2-de75-4d71-a37c-dee1f410e5af"))
-(no_connect (at 91.44 88.9) (uuid "83adeb42-581e-42e6-b60e-7711138525a8"))
+(wire (pts (xy 91.44 88.9) (xy 83.82 88.9)) (stroke (width 0) (type default)) (uuid "91082faa-a716-4ceb-a48e-3de92649f6ee"))
+(symbol (lib_id "power:GND") (at 83.82 88.9 270) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "e66ea683-61e4-4880-bad0-c6efe1317bbd")
+  (property "Reference" "#PWR17" (at 78.74 87.63 270) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Value" "GND" (at 78.74 88.9 270) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 83.82 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 83.82 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (pin "1" (uuid "04dfd398-ecac-46c1-8f52-9a0cce9b68a2"))
+  (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR17") (unit 1))))
+)
 (no_connect (at 91.44 91.44) (uuid "f5df0988-730e-4362-8848-909c821d933e"))
 (wire (pts (xy 91.44 93.98) (xy 86.36 93.98)) (stroke (width 0) (type default)) (uuid "3f934de9-4d66-4b44-aab6-1305fb1c17a5"))
 (symbol (lib_id "power:GND") (at 86.36 93.98 270) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "6456f633-f8e8-4aa4-babd-9c34a6c50204")
@@ -883,9 +1030,9 @@
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR08") (unit 1))))
 )
 (wire (pts (xy 91.44 96.52) (xy 86.36 96.52)) (stroke (width 0) (type default)) (uuid "55f96bc7-c474-4583-85de-daa3b156f89d"))
-(symbol (lib_id "power:+5V") (at 86.36 96.52 90) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "8348fafc-4ef4-4933-b73f-e2f7a52e905f")
+(symbol (lib_id "power:+BATT") (at 86.36 96.52 90) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "8348fafc-4ef4-4933-b73f-e2f7a52e905f")
   (property "Reference" "#PWR09" (at 81.28 95.25 90) (effects (font (size 1.27 1.27)) (hide yes)))
-  (property "Value" "+5V" (at 81.28 96.52 90) (effects (font (size 1.27 1.27))))
+  (property "Value" "+BATT" (at 81.28 96.52 90) (effects (font (size 1.27 1.27))))
   (property "Footprint" "" (at 86.36 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Datasheet" "" (at 86.36 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (pin "1" (uuid "aa58b46f-0efc-4219-abc3-60bb07b80b2d"))
@@ -917,9 +1064,9 @@
   (pin "2" (uuid "a7b03698-9b96-4d9b-a40d-aeff3857fb14"))
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "C1") (unit 1))))
 )
-(symbol (lib_id "power:+5V") (at 76.2 110.49 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "e2759164-2654-48e9-af58-a0afa03829cb")
+(symbol (lib_id "power:+BATT") (at 76.2 110.49 0) (unit 1) (exclude_from_sim no) (in_bom no) (on_board yes) (dnp no) (uuid "e2759164-2654-48e9-af58-a0afa03829cb")
   (property "Reference" "#PWR10" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
-  (property "Value" "+5V" (at 76.2 106.68 0) (effects (font (size 1.27 1.27))))
+  (property "Value" "+BATT" (at 76.2 106.68 0) (effects (font (size 1.27 1.27))))
   (property "Footprint" "" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (property "Datasheet" "" (at 76.2 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
   (pin "1" (uuid "8c7b04fb-6d67-475a-a63b-9ecb11ab920c"))
@@ -934,6 +1081,6 @@
   (instances (project "boopbox-proto" (path "/cf3ae905-5af5-44db-b9d8-9bea9527c364/b7670513-b52d-4614-8641-1f15bc1645c8" (reference "#PWR11") (unit 1))))
 )
 (text "C1: place at U3 VIN/GND" (exclude_from_sim no) (at 81.28 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "5fa7d76b-13e2-4b3e-b403-4e1fcead1645"))
-(text "AUDIO NOTES\n- VIN from 5V (Feather USB pin) for full output; 3.3V works but is much quieter.\n- C1 sits right at the amp's VIN/GND on the breadboard to stop brownout resets on loud peaks.\n- GAIN unconnected = 9 dB. SD unconnected = (L+R)/2 mono mix via the board's on-board resistor.\n- Do NOT tie SD straight to a 3.3V GPIO: a solid high selects LEFT channel only. If you want\n  GPIO mute, check the MAX98357A datasheet SD_MODE thresholds and size a series resistor first.\n- Speaker goes across SPK+ / SPK-. Outputs are bridge-tied: never connect either one to GND." (exclude_from_sim no) (at 127 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "768294bf-51a0-4f4c-ade2-145d9e30db86"))
+(text "AUDIO NOTES\n- Wiring and gotchas: notes/wiring.md (Amp section).\n- Speaker outputs are bridge-tied: never connect SPK+ or SPK- to GND." (exclude_from_sim no) (at 127 119.38 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "768294bf-51a0-4f4c-ade2-145d9e30db86"))
 (embedded_fonts no)
 )

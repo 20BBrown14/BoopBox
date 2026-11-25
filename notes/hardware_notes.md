@@ -11,18 +11,10 @@
   - [Datasheet/Details](https://www.elechouse.com/elechouse/images/product/PN532_module_V3/PN532_%20Manual_V3.pdf)
 
 ## Audio (MAX98357A)
-Schematic: `hardware/boopbox-proto` (KiCad). Firmware pins are substitutions in `firmware/BoopBox_v0.3.3.yaml`.
+Wiring: [wiring.md](wiring.md#amp-max98357a). Schematic: `hardware/boopbox-proto` (KiCad).
 
-| MAX98357A | Feather | Notes |
-|---|---|---|
-| BCLK | RX / GPIO38 | Was D9; moved away from the touch pins (see "Touch rework") |
-| LRC | TX / GPIO39 | Was D10 |
-| DIN | MI / GPIO37 | Was D11 |
-| VIN | BAT (3.7–4.2V) | 1000uF across VIN/GND right at the amp. Was USB 5V; moved to BAT 2026-11-10 for battery operation |
-| GND | GND | |
-| GAIN | GND | GND = 12 dB (floating = 9 dB was too quiet) |
-| SD | — | floating = (L+R)/2 mono; GPIO12 reserved for mute/sleep later |
-
+- I2S was on D9/D10/D11; it moved to RX/TX/MI to get away from the touch pins (see "Touch rework").
+- VIN was USB 5V; it moved to BAT on 2026-11-10 for battery operation. GAIN is tied to GND: floating (9 dB) was too quiet.
 - Power: 5V gives ~2.5W clean into 4Ω (speaker is rated 3W); 3.3V is only ~1.3W. USB pin is dead on battery, so the battery build moves VIN to BAT (3.7–4.2V is in range).
 - Speaker outputs are bridge-tied: never connect SPK+ or SPK- to GND (including a scope ground clip).
 - Don't drive SD high from a GPIO: a solid 3.3V selects LEFT only. Mute = pull low, play = release (open-drain).
@@ -38,14 +30,8 @@ to daisy-chain a second ring/strip).
 > on battery, so a ring on USB goes dark as soon as USB-C is unplugged. See
 > "Battery build" below for why BAT direct was chosen over a boost converter.
 
-| Ring | Feather | Notes |
-|---|---|---|
-| VCC | **BAT** (3.7–4.2V) | Not USB. Same rail as the amp. ~1000µF across VCC/GND at the ring. A P-channel MOSFET high-side switch is planned (see "Battery build"). |
-| GND | GND | Common ground with the Feather. |
-| DIN | A0 / GPIO18 | ~330–470Ω in series on the data line. No level shifter needed on BAT. |
-| DOUT | — | Unused for one ring; chains to the next ring's DIN if expanded. |
+Wiring: [wiring.md](wiring.md#led-ring-neopixel-ring-12). VCC on BAT, DIN from A0/GPIO18 (`led_ring_pin`) through 330–470Ω, ~1000µF at the ring. A P-channel MOSFET high-side switch is planned (see "Battery build").
 
-- A0 (GPIO18) drives DIN. Pin is a firmware substitution (`led_ring_pin`).
 - With VCC at 3.7–4.2V, the 3.3V data line meets the WS2812B logic-high level
   (0.7 × VDD ≤ 2.94V), so no level shifter is needed. A level shifter (74AHCT125)
   is only needed if the ring is ever moved to a 5V rail.
@@ -156,14 +142,7 @@ Direction: capacitive touch buttons (no moving parts, less 3D modelling), an LED
 - The amp's I2S is on RX/TX/MI (GPIO38/39/37). Every box must be rewired to match.
 
 ### Pin plan
-| Function | Feather | GPIO | Notes |
-|---|---|---|---|
-| Vol + (touch) | D5 | 5 | T5 |
-| Vol − (touch) | D6 | 6 | T6 |
-| Play/Pause (touch) | A4 | 14 | T14 |
-| Spare touch | A5 | 8 | T8. Clean during playback (amp still on D9–D11). |
-| LED ring data | A0 | 18 | not a touch pin. Ring VCC is on BAT, so no level shifter is needed. |
-| Amp BCLK / LRC / DIN | RX / TX / MI | 38 / 39 / 37 | not touch pins. Moved off D9–D11 for touch. |
+Current pins: [wiring.md](wiring.md). Touch pads on D5 (T5), D6 (T6) and A4 (T14); A5 (T8) is the spare touch pin. The amp's I2S moved off D9–D11 to RX/TX/MI, which aren't touch pins. The ring's A0 isn't a touch pin either.
 
 - Touch-capable pins on the S3 are GPIO1–14. 3/4 (I2C), 7 (I2C power) and 12 (amp SD) are already taken. 9–11 are free since the I2S move. 13 is the red LED, so avoid it. 1 and 2 aren't broken out on this Feather.
 - Three buttons fit on native touch, so no MPR121 is needed. If more controls are added later, the MPR121 (STEMMA QT) is the fallback.
@@ -352,7 +331,7 @@ Setup: pads in the closer-to-final shell; copper-tape pads with a stranded 24 AW
 - A short WAV embedded in flash (no network latency), played through the media player's announcement pipeline so it ducks over the music instead of stopping it. Keep it tiny: flash is 4 MB.
 
 ### Power switch
-- **EN only kills the 3.3V regulator.** The amp (VIN from USB/BAT) and the LED ring stay powered. That's fine for the prototype. The battery build needs the switch to cut the battery, or to drive a load switch that also cuts the amp and ring.
+- **EN only kills the 3.3V regulator.** The amp (VIN on BAT) and the LED ring stay powered. That's fine for the prototype. The battery build needs the switch to cut the battery, or to drive a load switch that also cuts the amp and ring.
 
 ### Parts ordered (2026-11-07)
 - Digi-Key:
@@ -373,7 +352,7 @@ Setup: pads in the closer-to-final shell; copper-tape pads with a stranded 24 AW
 - LED ring size (12 vs 16) and placement. If it goes around the NFC tap zone, check read range with the ring mounted.
 - Touch pad placement: away from the tap zone. The pads go behind 1 mm sections of the wall (decided 2026-11-10). Check NFC read range with pads mounted.
 - Click sound clip.
-- Other tests: USB current budget (KWS meter: LED cap + amp peaks), reliability of the level-shifted LED data, whether the KWS meter passes USB data, battery fit.
+- Other tests: USB current budget (KWS meter: LED cap + amp peaks), whether the KWS meter passes USB data, battery fit.
 
 ### References
 - [Espressif touch sensor design guide](https://github.com/espressif/esp-iot-solution/blob/release/v1.0/documents/touch_pad_solution/touch_sensor_design_en.md)
